@@ -1,7 +1,8 @@
-import { createContext, useCallback, useContext, useRef, useState, type ReactNode } from 'react';
+import { createContext, useCallback, useContext, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Animated, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { useReduceMotion } from '@/lib/useReduceMotion';
 import { colors, radius, shadows } from '@/theme/tokens';
 import { AppText } from './AppText';
 import { Icon } from './Icon';
@@ -22,6 +23,7 @@ export function useToast(): ToastApi {
 
 export function ToastProvider({ children }: { children: ReactNode }) {
   const insets = useSafeAreaInsets();
+  const reduceMotion = useReduceMotion();
   const [message, setMessage] = useState<string | null>(null);
   const [opacity] = useState(() => new Animated.Value(0));
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -30,15 +32,15 @@ export function ToastProvider({ children }: { children: ReactNode }) {
     (next: string) => {
       if (timer.current) clearTimeout(timer.current);
       setMessage(next);
-      Animated.timing(opacity, { toValue: 1, duration: 160, useNativeDriver: true }).start();
+      Animated.timing(opacity, { toValue: 1, duration: reduceMotion ? 0 : 160, useNativeDriver: true }).start();
       timer.current = setTimeout(() => {
-        Animated.timing(opacity, { toValue: 0, duration: 220, useNativeDriver: true }).start(() => setMessage(null));
+        Animated.timing(opacity, { toValue: 0, duration: reduceMotion ? 0 : 220, useNativeDriver: true }).start(() => setMessage(null));
       }, 1800);
     },
-    [opacity],
+    [opacity, reduceMotion],
   );
   const comingSoon = useCallback((feature: string) => show(`${feature} is coming soon`), [show]);
-  const [api] = useState<ToastApi>(() => ({ show: (m) => show(m), comingSoon: (f) => comingSoon(f) }));
+  const api = useMemo<ToastApi>(() => ({ show, comingSoon }), [show, comingSoon]);
 
   return (
     <ToastContext.Provider value={api}>

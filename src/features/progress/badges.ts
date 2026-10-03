@@ -38,10 +38,10 @@ export const BADGE_RULES: BadgeRule[] = [
   {
     id: 'speed',
     title: 'Speed Reader',
-    description: 'Clear a grid of 8+ words in under 2 minutes',
+    description: 'Clear a 6-word grid in under 2 minutes',
     icon: 'bolt',
     goal: 1,
-    progress: (r) => (r.some((x) => x.wordCount >= 8 && x.durationMs < 120_000) ? 1 : 0),
+    progress: (r) => (r.some((x) => x.wordCount >= 6 && x.durationMs < 120_000) ? 1 : 0),
   },
   { id: 'fifty', title: 'Puzzle Explorer', description: 'Solve 50 puzzles', icon: 'explore', goal: 50, progress: (r) => r.length },
   { id: 'chain10', title: 'Chain Linker', description: 'Solve 10 Chain puzzles', icon: 'gesture', goal: 10, progress: (r) => r.filter((x) => x.mode === 'chain').length },

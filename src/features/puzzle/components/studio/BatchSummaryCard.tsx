@@ -104,5 +104,5 @@ const styles = StyleSheet.create({
   barFill: { height: '100%', borderRadius: 5 },
   bandValue: { width: 32, fontSize: 13, fontWeight: '700', color: colors.ink, textAlign: 'right', fontVariant: ['tabular-nums'] },
   line: { fontSize: 13, color: colors.ink, lineHeight: 19 },
-  footnote: { fontSize: 12, color: colors.inkSubtle },
+  footnote: { fontSize: 12, color: colors.inkMuted },
 });

@@ -132,7 +132,7 @@ export const QualityReportCard = memo(function QualityReportCard({ puzzle, valid
 });
 
 const styles = StyleSheet.create({
-  id: { fontSize: 11, color: colors.inkSubtle, flexShrink: 1, marginLeft: spacing.sm },
+  id: { fontSize: 12, color: colors.inkMuted, flexShrink: 1, marginLeft: spacing.sm },
   row: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: spacing.sm },
   rowLabel: { fontSize: 14, color: colors.inkMuted },
   rowValue: { fontSize: 14, fontWeight: '700', color: colors.ink, flexShrink: 1, textAlign: 'right' },

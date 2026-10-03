@@ -94,3 +94,46 @@ export function matchChainPath(
 export function cellKeySet(cells: readonly Cell[]): Set<string> {
   return new Set(cells.map(cellKey));
 }
+
+export type ChainTapResult =
+  | { type: 'path'; path: Cell[] }
+  | { type: 'submit'; path: Cell[]; match: Extract<ChainMatch, { type: 'found' | 'wrong-path' }> };
+
+/**
+ * Tap-to-select for Chain mode: each tap adds a letter to the path.
+ *  - a found (blocked) cell → unchanged
+ *  - the last cell again → undo it
+ *  - an earlier cell → truncate back to it
+ *  - an orthogonal neighbour of the last cell → extend
+ *  - anything else → start a new path there
+ * The path submits by itself as soon as it covers a hidden word. A word spelled
+ * along the wrong route also submits (for feedback), unless the letters so far
+ * could still grow into a longer unfound word.
+ */
+export function resolveChainTap(
+  path: readonly Cell[],
+  cell: Cell,
+  blocked: (cell: Cell) => boolean,
+  grid: readonly (readonly string[])[],
+  placements: readonly ChainPlacement[],
+  foundWords: ReadonlySet<string>,
+): ChainTapResult {
+  if (blocked(cell)) return { type: 'path', path: path as Cell[] };
+  let next: Cell[];
+  const index = path.findIndex((c) => same(c, cell));
+  if (index !== -1) next = index === path.length - 1 ? path.slice(0, -1) : path.slice(0, index + 1);
+  else if (path.length > 0 && isAdjacent(path[path.length - 1], cell)) next = [...path, cell];
+  else next = [cell];
+
+  const match = matchChainPath(next, grid, placements, foundWords);
+  if (match.type === 'found') return { type: 'submit', path: next, match };
+  if (match.type === 'wrong-path') {
+    const letters = next.map((c) => grid[c.row][c.col]).join('');
+    const reversed = letters.split('').reverse().join('');
+    const canGrow = placements.some(
+      (p) => !foundWords.has(p.word) && p.word.length > letters.length && (p.word.startsWith(letters) || p.word.endsWith(reversed)),
+    );
+    if (!canGrow) return { type: 'submit', path: next, match };
+  }
+  return { type: 'path', path: next };
+}

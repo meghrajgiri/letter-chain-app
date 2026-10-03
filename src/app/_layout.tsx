@@ -12,6 +12,7 @@ import { useEffect } from 'react';
 
 import { ToastProvider } from '@/components/ui/Toast';
 import { AccountProvider } from '@/features/account/AccountProvider';
+import { DailySync } from '@/features/daily/DailySync';
 import { ProgressProvider, useProgress } from '@/features/progress/ProgressProvider';
 import { ReminderSync } from '@/features/reminders/ReminderSync';
 import { colors, fonts } from '@/theme/tokens';
@@ -47,6 +48,7 @@ function AppShell() {
     <AccountProvider>
       <ToastProvider>
         <ReminderSync />
+        <DailySync />
         <StatusBar style="dark" />
         <Stack
           screenOptions={{
@@ -67,3 +69,5 @@ function AppShell() {
     </AccountProvider>
   );
 }
+
+export { ErrorScreen as ErrorBoundary } from '@/components/ErrorScreen';

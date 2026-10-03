@@ -1,13 +1,16 @@
+import { levelsByMode } from './autoGame';
 import { computeBadges, type Badge } from './badges';
-import { levelForXp, type LevelInfo } from './level';
+import type { LevelInfo } from './level';
 import { scoreGame } from './scoring';
 import { computeStats, isPersonalBest, type Stats } from './stats';
 import { computeStreak, type StreakInfo } from './streak';
-import type { GameResult } from './types';
+import type { GameMode, GameResult } from './types';
 
 export type ProgressSummary = {
+  /** Total XP across both modes. */
   xp: number;
-  level: LevelInfo;
+  /** Classic and Chain levels are tracked separately (each from its own games). */
+  levels: Record<GameMode, LevelInfo>;
   streak: StreakInfo;
   stats: Stats;
   badges: Badge[];
@@ -15,16 +18,20 @@ export type ProgressSummary = {
   todayDaily: GameResult | null;
 };
 
-/** Everything the UI shows about the player's progress, derived from their results. */
-export function computeProgress(results: readonly GameResult[], todayKey: string, themeCount: number): ProgressSummary {
+/**
+ * Everything the UI shows about the player's progress, derived from their results.
+ * `todayKey` is the local date (weekly stats); `dailyKey` is today's daily
+ * puzzle date (UTC), which streaks and "today's daily" follow.
+ */
+export function computeProgress(results: readonly GameResult[], todayKey: string, themeCount: number, dailyKey: string = todayKey): ProgressSummary {
   const xp = results.reduce((sum, r) => sum + scoreGame(r), 0);
   return {
     xp,
-    level: levelForXp(xp),
-    streak: computeStreak(results, todayKey),
+    levels: levelsByMode(results),
+    streak: computeStreak(results, dailyKey),
     stats: computeStats(results, todayKey),
     badges: computeBadges(results, themeCount),
-    todayDaily: results.find((r) => r.isDaily && r.dailyDate === todayKey) ?? null,
+    todayDaily: results.find((r) => r.isDaily && r.dailyDate === dailyKey) ?? null,
   };
 }
 
@@ -32,8 +39,11 @@ export type CompletionSummary = {
   score: number;
   /** XP gained (= score). */
   xpGained: number;
+  /** Levels in the game's own mode. */
   levelBefore: number;
   levelAfter: number;
+  /** The game's mode level after this game. */
+  level: LevelInfo;
   isPersonalBest: boolean;
   /** Badges earned by this game. */
   newBadges: Badge[];
@@ -46,21 +56,24 @@ export type CompletionSummary = {
 export function summarizeCompletion(
   result: GameResult,
   history: readonly GameResult[],
-  todayKey: string,
+  /** Today's daily puzzle date (streaks follow it). */
+  dailyKey: string,
   themeCount: number,
 ): CompletionSummary {
   const before = history.filter((r) => r.id !== result.id);
   const after = [...before, result];
   const score = scoreGame(result);
-  const xpBefore = before.reduce((s, r) => s + scoreGame(r), 0);
+  const levelBefore = levelsByMode(before)[result.mode];
+  const levelAfter = levelsByMode(after)[result.mode];
   return {
     score,
     xpGained: score,
-    levelBefore: levelForXp(xpBefore).level,
-    levelAfter: levelForXp(xpBefore + score).level,
+    levelBefore: levelBefore.level,
+    levelAfter: levelAfter.level,
+    level: levelAfter,
     isPersonalBest: isPersonalBest(result, before),
     newBadges: computeBadges(after, themeCount).filter((b) => b.earnedAt === result.completedAt),
-    streak: computeStreak(after, todayKey),
+    streak: computeStreak(after, dailyKey),
     puzzlesSolved: after.length,
   };
 }

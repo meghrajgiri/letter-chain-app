@@ -35,7 +35,7 @@ export const ChainWordList = memo(function ChainWordList({ words, found, hinted,
         <AppText variant="labelMd" color={colors.inkMuted} style={styles.title} accessibilityRole="header">
           Hidden words ({found.length}/{words.length})
         </AppText>
-        <AppText variant="labelMd" color={colors.primary}>
+        <AppText variant="labelMd" color={colors.ink}>
           {remaining === 0 ? 'Grid complete!' : `${remaining} Remaining`}
         </AppText>
       </View>
@@ -45,7 +45,7 @@ export const ChainWordList = memo(function ChainWordList({ words, found, hinted,
           if (f) {
             const c = wordColors[f.colorIndex % wordColors.length];
             return (
-              <View key={word} style={[styles.chip, { width: chainChipWidth(word.length), backgroundColor: c.bg }]} accessibilityLabel={`${word}, found`}>
+              <View key={word} style={[styles.chip, { minWidth: chainChipWidth(word.length), backgroundColor: c.bg }]} accessibilityLabel={`${word}, found`}>
                 <Icon name="check" size={14} color={c.ink} />
                 <AppText variant="labelMd" color={c.ink}>
                   {word}
@@ -55,7 +55,7 @@ export const ChainWordList = memo(function ChainWordList({ words, found, hinted,
           }
           if (hinted.includes(word)) {
             return (
-              <View key={word} style={[styles.chip, styles.hinted, { width: chainChipWidth(word.length) }]} accessibilityLabel={`${word}, revealed by hint`}>
+              <View key={word} style={[styles.chip, styles.hinted, { minWidth: chainChipWidth(word.length) }]} accessibilityLabel={`${word}, revealed by hint`}>
                 <Icon name="lightbulb-outline" size={14} color={colors.yellowInk} />
                 <AppText variant="labelMd" color={colors.yellowInk}>
                   {word}
@@ -64,13 +64,13 @@ export const ChainWordList = memo(function ChainWordList({ words, found, hinted,
             );
           }
           return (
-            <View key={word} style={[styles.chip, styles.hidden, { width: chainChipWidth(word.length) }]} accessibilityLabel={`Hidden word, ${word.length} letters`}>
+            <View key={word} style={[styles.chip, styles.hidden, { minWidth: chainChipWidth(word.length) }]} accessibilityLabel={`Hidden word, ${word.length} letters`}>
               <View style={styles.boxes}>
                 {Array.from({ length: word.length }, (_, i) => (
                   <View key={i} style={styles.box} />
                 ))}
               </View>
-              <AppText variant="labelMd" color={colors.primary}>
+              <AppText variant="labelMd" color={colors.primaryDark}>
                 {word.length}
               </AppText>
             </View>
@@ -96,7 +96,7 @@ const styles = StyleSheet.create({
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 8 },
   title: { textTransform: 'uppercase', letterSpacing: 0.8, flexShrink: 1 },
   list: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
-  chip: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, height: 30, paddingHorizontal: 8, borderRadius: radius.pill },
+  chip: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, minHeight: 30, paddingHorizontal: 8, borderRadius: radius.pill },
   hidden: { backgroundColor: colors.primarySoft },
   hinted: { backgroundColor: colors.yellowSoft, borderWidth: 1, borderColor: colors.yellow },
   boxes: { flexDirection: 'row', gap: 3 },

@@ -8,3 +8,13 @@ export { computeStats, isPersonalBest, type Stats, type BestTime } from './stats
 export { computeBadges, BADGE_RULES, type Badge, type BadgeIcon } from './badges';
 export { computeProgress, summarizeCompletion, type ProgressSummary, type CompletionSummary } from './summary';
 export { buildShareText } from './share';
+export {
+  DIFFICULTY_LADDER,
+  RECENT_THEMES_SKIPPED,
+  difficultyForLevel,
+  levelsByMode,
+  nextAutoGame,
+  nextDifficultyStep,
+  pickTheme,
+  type AutoGame,
+} from './autoGame';

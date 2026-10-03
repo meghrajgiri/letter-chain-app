@@ -15,6 +15,8 @@ type Options = {
   isBlocked: (cell: Cell) => boolean;
   onSelectionStart?: () => void;
   onSelectionEnd: (path: Cell[]) => void;
+  /** Called instead of `onSelectionEnd` when the finger lifts without leaving the first cell. */
+  onTap?: (cell: Cell) => void;
 };
 
 /**
@@ -32,6 +34,7 @@ export function useChainSelection(options: Options): {
     latest.current = options;
   });
   const current = useRef<Cell[]>([]);
+  const moved = useRef(false);
   const offset = useRef({ x: 0, y: 0 });
 
   const update = (next: Cell[]) => {
@@ -55,6 +58,7 @@ export function useChainSelection(options: Options): {
         offset.current = { x: pageX - locationX, y: pageY - locationY };
         const cell = getCellFromTouchPoint({ x: locationX, y: locationY }, pitch, Math.max(rows, cols), { clamp: true });
         if (!cell || cell.row >= rows || cell.col >= cols) return;
+        moved.current = false;
         update(extendPath([], cell, isBlocked));
         latest.current.onSelectionStart?.();
       },
@@ -64,13 +68,18 @@ export function useChainSelection(options: Options): {
         const { pitch, tile, rows, cols, isBlocked } = latest.current;
         const point = { x: event.nativeEvent.pageX - offset.current.x, y: event.nativeEvent.pageY - offset.current.y };
         const cell = getCellNearCenter(point, pitch, tile, rows, cols);
-        if (cell) update(extendPath(current.current, cell, isBlocked));
+        if (!cell) return;
+        const next = extendPath(current.current, cell, isBlocked);
+        if (next.length > 1) moved.current = true;
+        update(next);
       },
 
       onPanResponderRelease: () => {
         const done = current.current;
         update([]);
-        if (done.length > 0) latest.current.onSelectionEnd(done);
+        if (done.length === 0) return;
+        if (!moved.current && done.length === 1 && latest.current.onTap) latest.current.onTap(done[0]);
+        else latest.current.onSelectionEnd(done);
       },
 
       onPanResponderTerminate: () => update([]),

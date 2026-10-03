@@ -1,5 +1,5 @@
 import { memo, useMemo } from 'react';
-import { StyleSheet, View, type GestureResponderHandlers } from 'react-native';
+import { Pressable, StyleSheet, View, type GestureResponderHandlers } from 'react-native';
 
 import { colors, radius } from '@/theme/tokens';
 import { getCellsBetween } from '../engine/getCellsBetween';
@@ -8,7 +8,7 @@ import type { Cell, Grid } from '../engine/types';
 import type { TileLayout } from '../game/tileLayout';
 import type { FoundWord } from '../hooks/usePuzzle';
 import type { Selection } from '../hooks/usePuzzleSelection';
-import { LetterTile, TILE_IDLE, TILE_SELECTED } from './LetterTile';
+import { LetterTile, TILE_IDLE, TILE_SELECTED, tileLabel } from './LetterTile';
 
 type Props = {
   grid: Grid;
@@ -19,6 +19,13 @@ type Props = {
   hintCells?: readonly Cell[];
   panHandlers?: GestureResponderHandlers;
   accessibilityLabel?: string;
+  accessibilityHint?: string;
+  /**
+   * Screen reader mode: every tile becomes a button that calls `onTileTap`
+   * (dragging isn't possible with TalkBack/VoiceOver).
+   */
+  screenReader?: boolean;
+  onTileTap?: (cell: Cell) => void;
 };
 
 /** Inner padding of the lavender well around the tiles. */
@@ -28,7 +35,18 @@ export const TILE_WELL_PADDING = 6;
  * The playable letter grid. Tile states are derived once per render; each
  * LetterTile is memoised, so a drag only re-renders tiles whose state changed.
  */
-export const TileGrid = memo(function TileGrid({ grid, layout, found, selection, hintCells, panHandlers, accessibilityLabel }: Props) {
+export const TileGrid = memo(function TileGrid({
+  grid,
+  layout,
+  found,
+  selection,
+  hintCells,
+  panHandlers,
+  accessibilityLabel,
+  accessibilityHint,
+  screenReader = false,
+  onTileTap,
+}: Props) {
   const foundColor = useMemo(() => {
     const map = new Map<string, number>();
     // Later finds paint over earlier ones where words cross.
@@ -44,15 +62,25 @@ export const TileGrid = memo(function TileGrid({ grid, layout, found, selection,
   const rings = useMemo(() => new Set((hintCells ?? []).map(cellKey)), [hintCells]);
 
   return (
-    <View style={styles.well} accessibilityLabel={accessibilityLabel}>
+    <View style={styles.well} accessibilityLabel={accessibilityLabel} accessibilityHint={accessibilityHint}>
       {/* box-only: this view is the touch target, so locationX/Y are grid-relative. */}
-      <View style={{ width: layout.size, height: layout.size, gap: layout.gap, pointerEvents: 'box-only' }} {...panHandlers}>
+      <View
+        style={{ width: layout.size, height: layout.size, gap: layout.gap, pointerEvents: screenReader ? 'auto' : 'box-only' }}
+        {...(screenReader ? undefined : panHandlers)}
+      >
         {grid.map((row, r) => (
           <View key={r} style={[styles.row, { gap: layout.gap }]}>
             {row.map((letter, c) => {
               const key = `${r},${c}`;
               const state = selected.has(key) ? TILE_SELECTED : (foundColor.get(key) ?? TILE_IDLE);
-              return <LetterTile key={c} letter={letter} size={layout.tile} state={state} ring={rings.has(key)} />;
+              const ring = rings.has(key);
+              const tile = <LetterTile key={c} letter={letter} size={layout.tile} state={state} ring={ring} />;
+              if (!screenReader) return tile;
+              return (
+                <Pressable key={c} accessibilityRole="button" accessibilityLabel={tileLabel(letter, r, c, state, ring)} onPress={() => onTileTap?.({ row: r, col: c })}>
+                  {tile}
+                </Pressable>
+              );
             })}
           </View>
         ))}

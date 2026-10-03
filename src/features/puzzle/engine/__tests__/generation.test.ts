@@ -110,7 +110,7 @@ describe('avoiding recent words', () => {
 
   it('reuses the least recently used words when the bank runs short', () => {
     const words = ['ALPHA', 'BRAVO', 'CHARLIE', 'DELTA', 'ECHO', 'FOXTROT', 'GOLF', 'HOTEL', 'INDIA', 'JULIET'];
-    const p = generatePuzzle({ words, difficulty: 'easy', wordCount: 8, seed: 1, avoidWords: ['ALPHA', 'BRAVO', 'CHARLIE', 'DELTA', 'ECHO', 'FOXTROT'] });
+    const p = generatePuzzle({ words, difficulty: 'easy', wordCount: 5, seed: 1, avoidWords: ['ALPHA', 'BRAVO', 'CHARLIE', 'DELTA', 'ECHO', 'FOXTROT'] });
     // Only 4 fresh words exist, so some must be reused — the oldest first (end of the list).
     expect(p.reusedWords.length).toBeGreaterThan(0);
     expect(p.reusedWords).not.toContain('ALPHA');
@@ -143,6 +143,21 @@ describe('word banks', () => {
       expect(theme.words.length).toBeGreaterThanOrEqual(60);
       for (const w of theme.words) expect(w).toMatch(/^[A-Z]{3,}$/);
       expect(new Set(theme.words).size).toBe(theme.words.length);
+    }
+  });
+});
+
+describe('word mix (4–6 words, varied lengths)', () => {
+  it.each(DIFFICULTIES)('%s puzzles have 4–6 words and no length more than twice', (difficulty) => {
+    for (const theme of ['animals', 'food', 'space', 'colors', 'jobs']) {
+      for (let seed = 0; seed < 4; seed++) {
+        const p = generatePuzzle({ theme, difficulty, seed });
+        expect(p.words.length).toBeGreaterThanOrEqual(4);
+        expect(p.words.length).toBeLessThanOrEqual(6);
+        const counts = new Map<number, number>();
+        for (const w of p.words) counts.set(w.length, (counts.get(w.length) ?? 0) + 1);
+        expect(Math.max(...counts.values())).toBeLessThanOrEqual(2);
+      }
     }
   });
 });

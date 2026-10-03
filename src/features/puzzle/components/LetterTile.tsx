@@ -16,6 +16,12 @@ type Props = {
   ring?: boolean;
 };
 
+/** Screen-reader label for a tile: "A, row 2, column 5, selected". */
+export function tileLabel(letter: string, row: number, col: number, state: TileState, ring?: boolean): string {
+  const status = state === TILE_SELECTED ? ', selected' : state >= 0 ? ', found' : ring ? ', hint' : '';
+  return `${letter}, row ${row + 1}, column ${col + 1}${status}`;
+}
+
 /** One letter tile with the design's tactile bottom lip. */
 export const LetterTile = memo(function LetterTile({ letter, size, state, ring }: Props) {
   const lip = size >= 30 ? 3 : 2;

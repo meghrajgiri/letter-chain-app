@@ -1,6 +1,6 @@
 import { getCellsBetween } from '../../engine/getCellsBetween';
 import type { Grid } from '../../engine/types';
-import { getCellFromTouchPoint, matchSelection, readCells, snapSelectionEnd, snapSelectionFromPoint } from '../selection';
+import { getCellFromTouchPoint, matchSelection, readCells, resolveTap, snapSelectionEnd, snapSelectionFromPoint } from '../selection';
 
 const grid: Grid = ['CATS', 'XOXX', 'XXWX', 'TACX'].map((r) => r.split(''));
 
@@ -127,5 +127,28 @@ describe('matchSelection', () => {
 
   it('reads letters from cells', () => {
     expect(readCells(grid, [{ row: 3, col: 0 }, { row: 3, col: 1 }, { row: 3, col: 2 }])).toBe('TAC');
+  });
+});
+
+describe('resolveTap', () => {
+  const at = (row: number, col: number) => ({ row, col });
+
+  it('sets the anchor on the first tap', () => {
+    expect(resolveTap(null, at(2, 3))).toEqual({ type: 'anchor', anchor: at(2, 3) });
+  });
+
+  it('cancels when the anchor is tapped again', () => {
+    expect(resolveTap(at(2, 3), at(2, 3))).toEqual({ type: 'cancel' });
+  });
+
+  it('submits a straight line in any of the 8 directions', () => {
+    expect(resolveTap(at(2, 2), at(2, 6))).toEqual({ type: 'submit', start: at(2, 2), end: at(2, 6) });
+    expect(resolveTap(at(2, 2), at(0, 2))).toEqual({ type: 'submit', start: at(2, 2), end: at(0, 2) });
+    expect(resolveTap(at(2, 2), at(5, 5))).toEqual({ type: 'submit', start: at(2, 2), end: at(5, 5) });
+    expect(resolveTap(at(2, 2), at(4, 0))).toEqual({ type: 'submit', start: at(2, 2), end: at(4, 0) });
+  });
+
+  it('moves the anchor when the second tap is not in line', () => {
+    expect(resolveTap(at(0, 0), at(1, 2))).toEqual({ type: 'anchor', anchor: at(1, 2) });
   });
 });

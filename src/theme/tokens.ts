@@ -14,7 +14,8 @@ export const colors = {
   // Text
   ink: '#20202A',
   inkMuted: '#6F6F7B',
-  inkSubtle: '#A1A1AD',
+  /** Icons and decoration only (≥3:1). Never use for text — use inkMuted. */
+  inkSubtle: '#868694',
   // Primary violet
   primary: '#6C5CE7',
   primaryPressed: '#5145CD',
@@ -95,7 +96,7 @@ export const type = {
   bodySm: { fontFamily: fonts.medium, fontSize: 14, lineHeight: 20 },
   labelLg: { fontFamily: fonts.bold, fontSize: 15, lineHeight: 20, letterSpacing: 0.15 },
   labelMd: { fontFamily: fonts.bold, fontSize: 13, lineHeight: 18, letterSpacing: 0.26 },
-  labelBadge: { fontFamily: fonts.extrabold, fontSize: 11, lineHeight: 14, letterSpacing: 0.44, textTransform: 'uppercase' },
+  labelBadge: { fontFamily: fonts.extrabold, fontSize: 12, lineHeight: 16, letterSpacing: 0.44, textTransform: 'uppercase' },
 } satisfies Record<string, TextStyle>;
 
 export type TypeVariant = keyof typeof type;

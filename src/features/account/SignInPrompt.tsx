@@ -51,7 +51,7 @@ export function SignInPrompt({ completion }: { completion: CompletionSummary | n
           onPress={() => updateSettings({ signInSnoozeUntil: completion.puzzlesSolved + SNOOZE_PUZZLES })}
           accessibilityRole="button"
           hitSlop={8}
-          style={styles.later}
+          style={({ pressed }) => [styles.later, pressed && { opacity: 0.5 }]}
         >
           <AppText variant="labelLg" color={colors.inkMuted}>
             Not now

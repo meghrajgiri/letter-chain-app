@@ -24,13 +24,15 @@ type Options = {
   wordCount?: number;
   /** Recent words to keep out of this puzzle. Pass a stable array (it's a memo dependency). */
   avoidWords?: readonly string[];
+  /** A ready-made puzzle (the daily); skips generation. */
+  preset?: Puzzle;
 };
 
 /** Game state for one puzzle: generation, found words and completion. */
-export function usePuzzle({ theme, difficulty, seed, gridSize, wordCount, avoidWords }: Options) {
+export function usePuzzle({ theme, difficulty, seed, gridSize, wordCount, avoidWords, preset }: Options) {
   const puzzle: Puzzle = useMemo(
-    () => generatePuzzle({ theme, difficulty, seed, gridSize, wordCount, avoidWords }),
-    [theme, difficulty, seed, gridSize, wordCount, avoidWords],
+    () => preset ?? generatePuzzle({ theme, difficulty, seed, gridSize, wordCount, avoidWords }),
+    [preset, theme, difficulty, seed, gridSize, wordCount, avoidWords],
   );
   const [found, setFound] = useState<FoundWord[]>([]);
   const [hinted, setHinted] = useState<string[]>([]);

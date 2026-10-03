@@ -120,3 +120,31 @@ describe('determinism and history', () => {
     expect(next.words.filter((w) => first.words.includes(w))).toEqual([]);
   });
 });
+
+describe('word mix (4–6 words, varied lengths)', () => {
+  const sameLengthMax = (words: string[]) => Math.max(...Object.values(words.reduce<Record<number, number>>((c, w) => ({ ...c, [w.length]: (c[w.length] ?? 0) + 1 }), {})));
+
+  it.each(CHAIN_DIFFICULTIES)('%s puzzles have 4–6 words and no length more than twice', (difficulty) => {
+    for (const theme of ['animals', 'food', 'space', 'colors', 'jobs']) {
+      for (let seed = 0; seed < 4; seed++) {
+        const p = generateChainPuzzle({ theme, difficulty, seed });
+        expect(p.words.length).toBeGreaterThanOrEqual(4);
+        expect(p.words.length).toBeLessThanOrEqual(6);
+        expect(sameLengthMax(p.words)).toBeLessThanOrEqual(2);
+      }
+    }
+  });
+
+  it('selectChainWords respects maxSameLength', () => {
+    const words = selectChainWords({
+      candidates: ['ABCD', 'EFGH', 'IJKL', 'MNOP', 'QRSTU', 'VWXYZA'],
+      totalLetters: 16,
+      count: { min: 4, max: 4 },
+      length: { min: 4, max: 6 },
+      rng: createRng(3),
+      maxSameLength: 2,
+    });
+    // 16 letters in 4 words needs four 4-letter words, which the cap forbids.
+    expect(words).toBeNull();
+  });
+});

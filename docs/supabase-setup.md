@@ -90,3 +90,49 @@ npx expo run:android
 - **"Unacceptable audience in id_token"**: the Web client ID is missing from Supabase → Google → Client IDs.
 - **"Nonces mismatch"**: turn on **Skip nonce check**.
 - **Sync shows "Couldn't sync"**: run step 1 (tables/permissions) and check you're online.
+
+
+## Daily puzzles
+
+Migration `20261006000000_daily_puzzles.sql` adds `daily_puzzles`: one finished puzzle per UTC date. Guests and signed-in players can read today's and tomorrow's rows (and older ones); only the service role can write. A published day is never overwritten.
+
+Publish upcoming days from your machine (uses the CLI's linked project, no keys):
+
+```bash
+npm run dailies              # next 60 days from today (UTC); existing days are kept
+npm run dailies -- 90        # next 90 days
+npm run dailies -- 7 --dry-run
+```
+
+To swap a published day by hand, delete its row in the dashboard (Table editor → daily_puzzles) and re-run the script, or insert a replacement with `source = 'manual'`.
+
+The script keeps a backlog of evergreen days. The `publish-daily` Edge Function (below) upgrades each day to a trending theme the day before it goes live. Keep the backlog topped up now and then; if it ever runs out, the function still publishes each next day, and the app falls back to generating the daily on the device.
+
+## Trending dailies (`publish-daily` Edge Function)
+
+Every day at **12:00 UTC** (pg_cron + pg_net, migration `20261007000000_publish_daily_schedule.sql`) the function plans **tomorrow's** daily:
+
+1. Fetches yesterday's most viewed English Wikipedia articles and their Wikidata facts (free, no keys).
+2. Keeps only allowlisted topics (films, TV, albums, sports events, living athletes/actors/musicians, space missions, festivals…). News, crimes, accidents, politics and deaths are never used. See `src/features/daily/trends/classify.ts`.
+3. Maps the top topic to a theme (football, cricket, movies, TV shows, gaming…), avoiding themes from the last 4 dailies and words from the last 2 weeks, and builds the puzzle with the app's own engine.
+4. Upgrades tomorrow's evergreen row to `source = 'trending'` (it never changes a day that's live, or one marked `trending`/`manual`). With nothing safe trending, the evergreen day stays.
+5. Sends a Telegram preview to the owner with a **Swap puzzle** button, which replaces it with an evergreen theme (`source = 'manual'`) until it goes live at 00:00 UTC.
+
+**Preview notifications** go to the owner's Telegram, from their own bot. Set up once with `npm run telegram:setup`: create a bot with @BotFather, paste its token (hidden), tap Start in the bot, and the script stores `TELEGRAM_BOT_TOKEN` and `TELEGRAM_CHAT_ID` as function secrets and sends a test message. Each preview has a **Swap puzzle** button (a signed link for that date only); a swap sends a confirmation message. Run the script again to change bot or chat; `supabase secrets unset TELEGRAM_BOT_TOKEN` stops previews.
+
+**Secrets** (never in git or the app): `PUBLISH_DAILY_SECRET` (function secret) must equal Vault's `publish_daily_secret`, which the cron job sends. To rotate:
+
+```bash
+S=$(openssl rand -hex 32)
+supabase secrets set PUBLISH_DAILY_SECRET="$S"
+supabase db query --linked "update vault.secrets set secret = '$S' where name = 'publish_daily_secret'"   # or vault.update_secret
+```
+
+**Deploy after changing the daily or trend code** (the function bundles the app's engine):
+
+```bash
+npm run build:edge
+supabase functions deploy publish-daily --no-verify-jwt --use-api
+```
+
+Run it by hand for a specific date (same path as the schedule): in the SQL editor, run the `net.http_post(...)` from the migration with `?date=YYYY-MM-DD` appended to the URL; responses land in `net._http_response`.

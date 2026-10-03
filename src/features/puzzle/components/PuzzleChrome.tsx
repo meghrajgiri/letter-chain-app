@@ -24,7 +24,7 @@ export const PuzzleHeader = memo(function PuzzleHeader({
 }) {
   return (
     <View style={styles.header}>
-      <Pressable onPress={() => router.back()} accessibilityRole="button" accessibilityLabel="Back" hitSlop={10} style={styles.back}>
+      <Pressable onPress={() => router.back()} accessibilityRole="button" accessibilityLabel="Back" hitSlop={10} style={({ pressed }) => [styles.back, pressed && styles.pressed]}>
         <Icon name="arrow-back-ios-new" size={22} color={colors.ink} />
       </Pressable>
       <View style={styles.titleBlock} accessibilityRole="header">
@@ -38,7 +38,7 @@ export const PuzzleHeader = memo(function PuzzleHeader({
       </View>
       <View style={styles.right}>
         {onHelp && (
-          <Pressable onPress={onHelp} accessibilityRole="button" accessibilityLabel="How to play" hitSlop={8} style={styles.help}>
+          <Pressable onPress={onHelp} accessibilityRole="button" accessibilityLabel="How to play" hitSlop={8} style={({ pressed }) => [styles.help, pressed && styles.pressed]}>
             <Icon name="help-outline" size={24} color={colors.inkMuted} />
           </Pressable>
         )}
@@ -87,7 +87,7 @@ export const PuzzleStatusRow = memo(function PuzzleStatusRow({
 
 const styles = StyleSheet.create({
   header: {
-    height: 56,
+    minHeight: 56,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
@@ -95,18 +95,19 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
   },
   // Same width as the right-hand group so the title stays centred.
-  back: { width: 74, height: 36, justifyContent: 'center' },
+  back: { width: 74, minHeight: 36, justifyContent: 'center' },
   right: { width: 74, flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', gap: 6 },
   help: { width: 32, height: 36, alignItems: 'center', justifyContent: 'center' },
   titleBlock: { flex: 1, alignItems: 'center' },
-  row: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, height: 44 },
+  pressed: { opacity: 0.5 },
+  row: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, minHeight: 44 },
   timer: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
     backgroundColor: colors.surface,
     paddingHorizontal: 14,
-    height: 44,
+    minHeight: 44,
     borderRadius: radius.pill,
     boxShadow: shadows.card,
   },
@@ -119,7 +120,7 @@ const styles = StyleSheet.create({
     gap: 6,
     backgroundColor: colors.greenSoft,
     paddingHorizontal: 12,
-    height: 44,
+    minHeight: 44,
     borderRadius: radius.pill,
   },
   pauseSpacer: { width: 44 },

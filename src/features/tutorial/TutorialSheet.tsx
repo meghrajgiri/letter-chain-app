@@ -4,6 +4,7 @@ import { Modal, Pressable, StyleSheet, View } from 'react-native';
 import { AppText } from '@/components/ui/AppText';
 import { Button } from '@/components/ui/Button';
 import { colors, radius, shadows, spacing, wordColors } from '@/theme/tokens';
+import { useReduceMotion } from '@/lib/useReduceMotion';
 import { LetterTile, TILE_IDLE, TILE_SELECTED } from '../puzzle/components/LetterTile';
 
 export type TutorialMode = 'classic' | 'chain';
@@ -65,8 +66,8 @@ function stepsFor(mode: TutorialMode): Step[] {
       art: <MiniGrid letters={['CATX', 'QOWE', 'ZTWS', 'DOGK']} states={[[0, 0, 0, I], [I, 1, I, I], [I, I, 1, I], [2, 2, 2, I]]} />,
     },
     {
-      title: 'Drag to select',
-      body: 'Touch the first letter and slide to the last one, then let go. Found words keep their colour.',
+      title: 'Drag or tap to select',
+      body: 'Slide from the first letter to the last, or tap the first letter and then the last. Found words keep their colour.',
       art: <MiniGrid letters={['LION', 'XKQZ']} states={[[S, S, S, S], [I, I, I, I]]} />,
     },
     {
@@ -99,7 +100,7 @@ function stepsFor(mode: TutorialMode): Step[] {
     },
     {
       title: 'Trace winding paths',
-      body: 'Drag through neighbouring letters — up, down or sideways, never diagonally. Slide back to undo a letter.',
+      body: 'Drag or tap through neighbouring letters — up, down or sideways, never diagonally. Go back a letter to undo it.',
       art: (
         <MiniGrid
           letters={['SNA', 'XEK']}
@@ -149,6 +150,7 @@ type Props = {
 /** First-play "how to play" sheet (also reopened from the ? button). */
 export function TutorialSheet({ mode, visible, onDone }: Props) {
   const [index, setIndex] = useState(0);
+  const reduceMotion = useReduceMotion();
   const steps = stepsFor(mode);
   const step = steps[index];
   const last = index === steps.length - 1;
@@ -158,7 +160,7 @@ export function TutorialSheet({ mode, visible, onDone }: Props) {
   };
 
   return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={finish} statusBarTranslucent>
+    <Modal visible={visible} transparent animationType={reduceMotion ? 'none' : 'fade'} onRequestClose={finish} statusBarTranslucent>
       <View style={styles.backdrop}>
         <View style={styles.sheet} accessibilityViewIsModal>
           <View style={styles.top}>
@@ -166,7 +168,7 @@ export function TutorialSheet({ mode, visible, onDone }: Props) {
               How to play · {mode === 'chain' ? 'Chain' : 'Classic'}
             </AppText>
             {!last && (
-              <Pressable onPress={finish} accessibilityRole="button" hitSlop={10}>
+              <Pressable onPress={finish} accessibilityRole="button" hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} style={({ pressed }) => pressed && { opacity: 0.5 }}>
                 <AppText variant="labelLg" color={colors.inkMuted}>
                   Skip
                 </AppText>
@@ -214,7 +216,7 @@ const styles = StyleSheet.create({
   row: { flexDirection: 'row' },
   link: { position: 'absolute', borderRadius: 6 },
   chips: { gap: 8, alignItems: 'flex-start' },
-  lengthChip: { flexDirection: 'row', alignItems: 'center', gap: 6, height: 30, paddingHorizontal: 10, borderRadius: radius.pill, backgroundColor: colors.primarySoft },
+  lengthChip: { flexDirection: 'row', alignItems: 'center', gap: 6, minHeight: 30, paddingHorizontal: 10, borderRadius: radius.pill, backgroundColor: colors.primarySoft },
   boxes: { flexDirection: 'row', gap: 3 },
   box: { width: 8, height: 8, borderRadius: 2, backgroundColor: '#B4A9F5' },
   footer: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 4 },

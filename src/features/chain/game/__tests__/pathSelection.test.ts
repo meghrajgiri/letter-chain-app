@@ -1,5 +1,5 @@
 import type { ChainPlacement } from '../../engine/types';
-import { extendPath, getCellNearCenter, matchChainPath } from '../pathSelection';
+import { extendPath, getCellNearCenter, matchChainPath, resolveChainTap } from '../pathSelection';
 
 const free = () => false;
 const c = (row: number, col: number) => ({ row, col });
@@ -68,5 +68,62 @@ describe('matchChainPath', () => {
 
   it('misses non-words', () => {
     expect(matchChainPath([c(0, 0), c(1, 0)], grid, placements, new Set())).toEqual({ type: 'miss' });
+  });
+});
+
+describe('resolveChainTap', () => {
+  // C A T
+  // D O G
+  // E M U   words: CAT (row 0), DOG (row 1), EMU (row 2), plus a decoy route for COD.
+  const grid = ['CAT', 'DOG', 'EMU'].map((r) => r.split(''));
+  const row = (r: number) => [c(r, 0), c(r, 1), c(r, 2)];
+  const placements: ChainPlacement[] = [
+    { word: 'CAT', cells: row(0) },
+    { word: 'DOG', cells: row(1) },
+    { word: 'EMU', cells: row(2) },
+  ] as ChainPlacement[];
+  const tap = (path: { row: number; col: number }[], cell: { row: number; col: number }, found = new Set<string>(), blocked: (cell: { row: number; col: number }) => boolean = free) =>
+    resolveChainTap(path, cell, blocked, grid, placements, found);
+
+  it('starts, extends with neighbours and starts over on a far tap', () => {
+    expect(tap([], c(0, 0))).toEqual({ type: 'path', path: [c(0, 0)] });
+    expect(tap([c(0, 0)], c(1, 0))).toEqual({ type: 'path', path: [c(0, 0), c(1, 0)] });
+    expect(tap([c(0, 0)], c(2, 2))).toEqual({ type: 'path', path: [c(2, 2)] });
+    expect(tap([c(0, 0)], c(1, 1))).toEqual({ type: 'path', path: [c(1, 1)] }); // diagonal starts over
+  });
+
+  it('undoes the last cell and truncates to an earlier one', () => {
+    expect(tap([c(0, 0), c(1, 0)], c(1, 0))).toEqual({ type: 'path', path: [c(0, 0)] });
+    expect(tap([c(0, 0), c(1, 0), c(1, 1)], c(0, 0))).toEqual({ type: 'path', path: [c(0, 0)] });
+  });
+
+  it('ignores found cells', () => {
+    const blocked = (cell: { row: number; col: number }) => cell.row === 0;
+    expect(tap([c(1, 0)], c(0, 0), new Set(['CAT']), blocked)).toEqual({ type: 'path', path: [c(1, 0)] });
+  });
+
+  it('submits as soon as the path covers a word, in either direction', () => {
+    expect(tap([c(0, 0), c(0, 1)], c(0, 2))).toEqual({ type: 'submit', path: row(0), match: { type: 'found', word: 'CAT' } });
+    expect(tap([c(1, 2), c(1, 1)], c(1, 0))).toEqual({
+      type: 'submit',
+      path: [c(1, 2), c(1, 1), c(1, 0)],
+      match: { type: 'found', word: 'DOG' },
+    });
+  });
+
+  it('reports a word on the wrong route unless it could still grow into a longer word', () => {
+    const cods: ChainPlacement[] = [
+      { word: 'COD', cells: [c(2, 0), c(2, 1), c(2, 2)] },
+      { word: 'CODA', cells: [c(0, 0), c(0, 1), c(0, 2), c(1, 2)] },
+    ] as ChainPlacement[];
+    const g = ['COD', 'XXA', 'COD'].map((r) => r.split(''));
+    // C-O-D on row 0 spells COD on the wrong route, but CODA is still possible → keep going.
+    expect(resolveChainTap([c(0, 0), c(0, 1)], c(0, 2), free, g, cods, new Set())).toEqual({ type: 'path', path: row(0) });
+    // Once CODA is found there's nothing to grow into → wrong-path feedback.
+    expect(resolveChainTap([c(0, 0), c(0, 1)], c(0, 2), free, g, cods, new Set(['CODA']))).toEqual({
+      type: 'submit',
+      path: row(0),
+      match: { type: 'wrong-path', word: 'COD' },
+    });
   });
 });

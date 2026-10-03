@@ -45,7 +45,7 @@ export const SelectionChip = memo(function SelectionChip({ selectionText, feedba
     );
   } else {
     content = (
-      <AppText variant="bodySm" color={colors.inkSubtle}>
+      <AppText variant="bodySm" color={colors.inkMuted}>
         {hint}
       </AppText>
     );

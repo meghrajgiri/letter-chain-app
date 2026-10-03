@@ -123,3 +123,22 @@ export function matchSelection(
   }
   return null;
 }
+
+export type TapResult =
+  | { type: 'anchor'; anchor: Cell }
+  | { type: 'cancel' }
+  | { type: 'submit'; start: Cell; end: Cell };
+
+/**
+ * Tap-to-select (the alternative to dragging): tap a word's first letter,
+ * then its last.
+ *  - no anchor → the tapped cell becomes the anchor
+ *  - the anchor again → cancel
+ *  - a cell in a straight line from the anchor → submit anchor → cell
+ *  - any other cell → it becomes the new anchor
+ */
+export function resolveTap(anchor: Cell | null, cell: Cell): TapResult {
+  if (!anchor) return { type: 'anchor', anchor: cell };
+  if (anchor.row === cell.row && anchor.col === cell.col) return { type: 'cancel' };
+  return getCellsBetween(anchor, cell) ? { type: 'submit', start: anchor, end: cell } : { type: 'anchor', anchor: cell };
+}

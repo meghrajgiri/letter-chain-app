@@ -100,7 +100,7 @@ export function ProfileScreen() {
           <View style={styles.levelPill}>
             <Icon name="stars" size={16} color={colors.primary} />
             <AppText variant="labelMd" color={colors.primary}>
-              LEVEL {summary.level.level} · {summary.xp.toLocaleString('en-US')} XP
+              CLASSIC LV {summary.levels.classic.level} · CHAIN LV {summary.levels.chain.level} · {summary.xp.toLocaleString('en-US')} XP
             </AppText>
           </View>
         </View>

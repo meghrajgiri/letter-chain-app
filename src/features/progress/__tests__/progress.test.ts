@@ -132,7 +132,7 @@ describe('progress and completion summaries', () => {
     const r = [daily('2026-10-03', { durationMs: 10_000_000, wordCount: 10, difficulty: 'easy' })];
     const p = computeProgress(r, '2026-10-03', 24);
     expect(p.xp).toBe(100);
-    expect(p.level.level).toBe(2);
+    expect(p.levels.classic.level).toBe(2);
     expect(p.todayDaily?.id).toBe(r[0].id);
   });
 

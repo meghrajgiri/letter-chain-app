@@ -175,7 +175,7 @@ export function PuzzleStudioScreen() {
             value={seedText}
             onChangeText={setSeedText}
             placeholder="Random"
-            placeholderTextColor={colors.inkSubtle}
+            placeholderTextColor={colors.inkMuted}
             style={styles.input}
             autoCapitalize="none"
             autoCorrect={false}
@@ -319,7 +319,7 @@ const styles = StyleSheet.create({
   row: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
   scopeRow: { flexDirection: 'row', gap: spacing.lg },
   flex: { flex: 1, gap: spacing.sm },
-  seed: { flex: 1, fontSize: 12, color: colors.inkSubtle },
+  seed: { flex: 1, fontSize: 12, color: colors.inkMuted },
   switchRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs },
   switchLabel: { fontSize: 13, color: colors.inkMuted },
   progressTrack: { height: 22, borderRadius: 11, backgroundColor: colors.surfaceMuted, overflow: 'hidden', justifyContent: 'center' },
@@ -335,10 +335,10 @@ const styles = StyleSheet.create({
   },
   itemSelected: { backgroundColor: colors.primarySoft },
   itemPressed: { backgroundColor: colors.surfaceMuted },
-  itemIndex: { width: 40, fontSize: 13, color: colors.inkSubtle, fontVariant: ['tabular-nums'] },
+  itemIndex: { width: 40, fontSize: 13, color: colors.inkMuted, fontVariant: ['tabular-nums'] },
   itemTheme: { flex: 1, fontSize: 14, fontWeight: '600', color: colors.ink },
   itemDiff: { fontSize: 13, fontWeight: '900', width: 14, textAlign: 'center' },
-  arrow: { fontSize: 12, color: colors.inkSubtle },
+  arrow: { fontSize: 12, color: colors.inkMuted },
   itemScore: { width: 28, fontSize: 13, fontWeight: '700', color: colors.ink, textAlign: 'right', fontVariant: ['tabular-nums'] },
   itemFlags: { width: 56, fontSize: 13, fontWeight: '800', textAlign: 'right' },
 });

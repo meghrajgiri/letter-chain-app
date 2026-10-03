@@ -1,4 +1,5 @@
 import type { Rng } from './random';
+import { MAX_SAME_LENGTH } from './difficultyConfig';
 import type { Range } from './types';
 
 export type SelectWordsInput = {
@@ -83,7 +84,7 @@ export function selectWords(input: SelectWordsInput): SelectWordsResult {
   const tierNames: Tier[] = ['short', 'mid', 'long'];
   const tierWeights = [rng.float(0.2, 0.4), rng.float(0.3, 0.5), rng.float(0.2, 0.4)];
 
-  const maxSameLength = Math.max(2, Math.ceil(count * 0.34));
+  const maxSameLength = MAX_SAME_LENGTH;
   const lengthCounts = new Map<number, number>();
   const selected: string[] = [];
   const skipped: string[] = [];
@@ -108,10 +109,11 @@ export function selectWords(input: SelectWordsInput): SelectWordsResult {
     }
   }
 
-  // Second pass: if caps were too strict, relax the same-length cap.
-  if (selected.length < count) {
+  // Second pass: only when the length cap leaves too few words (tiny custom
+  // word lists), relax it.
+  if (selected.length < input.minCount) {
     for (const word of skipped.slice()) {
-      if (selected.length >= count) break;
+      if (selected.length >= input.minCount) break;
       if (letters + word.length > letterBudget || selected.some((s) => wordsConflict(s, word))) continue;
       selected.push(word);
       letters += word.length;
@@ -123,10 +125,12 @@ export function selectWords(input: SelectWordsInput): SelectWordsResult {
   const reused: string[] = [];
   for (const word of stale) {
     if (selected.length >= count) break;
+    if ((lengthCounts.get(word.length) ?? 0) >= maxSameLength && selected.length >= input.minCount) continue;
     if (letters + word.length > letterBudget || selected.some((s) => wordsConflict(s, word))) continue;
     selected.push(word);
     reused.push(word);
     letters += word.length;
+    lengthCounts.set(word.length, (lengthCounts.get(word.length) ?? 0) + 1);
   }
   if (reused.length > 0) notes.push(`Reused ${reused.length} recent word(s): ${reused.join(', ')}`);
 

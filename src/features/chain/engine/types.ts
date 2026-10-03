@@ -49,4 +49,6 @@ export type GenerateChainOptions = {
   seed?: number | string;
   /** Recently used words, most recent first (soft-avoided). */
   avoidWords?: readonly string[];
+  /** Override parts of the difficulty's config (e.g. the daily's 5×6 grid). Part of the puzzle id. */
+  config?: Partial<ChainConfig>;
 };

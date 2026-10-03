@@ -25,7 +25,7 @@ export function FloatingTabBar({ state, descriptors, navigation }: BottomTabBarP
         {state.routes.map((route, index) => {
           const focused = state.index === index;
           const label = descriptors[route.key].options.title ?? route.name;
-          const color = focused ? colors.primary : colors.inkSubtle;
+          const color = focused ? colors.primary : colors.inkMuted;
           return (
             <Pressable
               key={route.key}
@@ -36,7 +36,8 @@ export function FloatingTabBar({ state, descriptors, navigation }: BottomTabBarP
                 const event = navigation.emit({ type: 'tabPress', target: route.key, canPreventDefault: true });
                 if (!focused && !event.defaultPrevented) navigation.navigate(route.name, route.params);
               }}
-              style={styles.item}
+              android_ripple={{ color: colors.primarySoft, borderless: true, radius: 36 }}
+              style={({ pressed }) => [styles.item, pressed && styles.pressed]}
             >
               <Icon name={ICONS[route.name] ?? 'circle'} size={26} color={color} />
               <AppText variant="labelBadge" color={color} style={styles.label}>
@@ -68,4 +69,5 @@ const styles = StyleSheet.create({
   },
   item: { minWidth: 64, minHeight: 52, alignItems: 'center', justifyContent: 'center', gap: 2 },
   label: { textTransform: 'none', letterSpacing: 0.2 },
+  pressed: { opacity: 0.6 },
 });

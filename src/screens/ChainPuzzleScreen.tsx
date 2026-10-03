@@ -1,3 +1,4 @@
+import { router } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ScrollView, StyleSheet, View, useWindowDimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -7,8 +8,8 @@ import { Button } from '@/components/ui/Button';
 import { useToast } from '@/components/ui/Toast';
 import { CHAIN_WELL_PADDING, ChainGrid } from '@/features/chain/components/ChainGrid';
 import { ChainWordList } from '@/features/chain/components/ChainWordList';
-import type { ChainDifficulty } from '@/features/chain/engine/types';
-import { cellKeySet } from '@/features/chain/game/pathSelection';
+import type { ChainDifficulty, ChainPuzzle } from '@/features/chain/engine/types';
+import { cellKeySet, resolveChainTap, type ChainMatch } from '@/features/chain/game/pathSelection';
 import { useChainPuzzle } from '@/features/chain/hooks/useChainPuzzle';
 import { useChainSelection } from '@/features/chain/hooks/useChainSelection';
 import { buildShareText, pointsPerWord, type CompletionSummary, type GameResult } from '@/features/progress';
@@ -29,6 +30,8 @@ import type { Cell } from '@/features/puzzle/engine/types';
 import { getTileLayout } from '@/features/puzzle/game/tileLayout';
 import { wordHistory } from '@/features/puzzle/game/wordHistory';
 import { usePuzzleTimer } from '@/features/puzzle/hooks/usePuzzleTimer';
+import { announceFeedback, useScreenReader } from '@/lib/useScreenReader';
+import { startAutoGame } from '@/features/play/autoPlay';
 import { colors, radius, shadows, spacing } from '@/theme/tokens';
 
 type Props = {
@@ -36,6 +39,11 @@ type Props = {
   difficulty: ChainDifficulty;
   seed?: number;
   avoidWords?: string[];
+  mode?: 'free' | 'daily';
+  /** The daily puzzle (already built), when `mode` is 'daily'. */
+  preset?: ChainPuzzle;
+  /** UTC date of the daily puzzle ('YYYY-MM-DD'). */
+  dailyDate?: string;
 };
 
 const PADDING = spacing.md;
@@ -47,24 +55,27 @@ const MAX_BOARD = 520;
 /** Wider gaps than Classic so the path connectors between tiles are visible. */
 const chainGap = (n: number) => (n <= 6 ? 8 : n <= 7 ? 7 : 6);
 
+const NO_PATH: Cell[] = [];
+
 const nextGame = (theme: string) => ({ seed: randomSeed(), avoidWords: wordHistory.recentWords(theme) });
 
-export function ChainPuzzleScreen({ theme, difficulty, seed: initialSeed, avoidWords }: Props) {
+export function ChainPuzzleScreen({ theme, difficulty, seed: initialSeed, avoidWords, mode = 'free', preset, dailyDate }: Props) {
   const toast = useToast();
-  const { recordGame, summary, settings, updateSettings } = useProgress();
+  const { recordGame, results, settings, updateSettings } = useProgress();
   const [completion, setCompletion] = useState<{ puzzleId: string; summary: CompletionSummary; result: GameResult } | null>(null);
-  const [game, setGame] = useState(() =>
+  const [game] = useState(() =>
     initialSeed !== undefined ? { seed: initialSeed, avoidWords: avoidWords ?? [] } : nextGame(theme),
   );
-  const { puzzle, found, hinted, hintCells, hintsLeft, submitPath, revealHint, isComplete } = useChainPuzzle({
+  const { puzzle, found, foundWords, hinted, hintCells, hintsLeft, submitPath, revealHint, isComplete } = useChainPuzzle({
     theme,
     difficulty,
+    preset,
     ...game,
   });
 
   useEffect(() => {
-    wordHistory.record(puzzle.theme, puzzle.id, puzzle.words);
-  }, [puzzle]);
+    if (mode === 'free') wordHistory.record(puzzle.theme, puzzle.id, puzzle.words);
+  }, [puzzle, mode]);
 
   const { elapsedMs, start: startTimer, stop: stopTimer, reset: resetTimer } = usePuzzleTimer();
   const [paused, setPaused] = useState(false);
@@ -114,28 +125,61 @@ export function ChainPuzzleScreen({ theme, difficulty, seed: initialSeed, avoidW
       puzzleId: puzzle.id,
       theme: puzzle.theme,
       difficulty: puzzle.difficulty,
-      isDaily: false,
-      dailyDate: null,
+      isDaily: mode === 'daily',
+      dailyDate: mode === 'daily' ? (dailyDate ?? null) : null,
       wordCount: puzzle.words.length,
       durationMs,
       hintsUsed: hinted.length,
     });
     setCompletion({ puzzleId: puzzle.id, summary: done, result });
-  }, [stopTimer, recordGame, puzzle, hinted.length]);
+  }, [stopTimer, recordGame, puzzle, hinted.length, mode, dailyDate]);
 
-  const handlePath = useCallback(
-    (path: Cell[]) => {
-      const result = submitPath(path);
+  const report = useCallback(
+    (result: ChainMatch) => {
       if (result.type === 'found') {
         haptic('found');
         showFeedback({ tone: 'found', text: `${result.word} +${pointsPerWord('chain', puzzle.difficulty)} pts` });
+        announceFeedback(`Found ${result.word}`);
         if (found.length + 1 === puzzle.words.length) finishGame();
       } else if (result.type === 'wrong-path') {
         haptic('warning');
         showFeedback({ tone: 'info', text: `${result.word} is right, but not that path` });
+        announceFeedback(`${result.word} is right, but not that path`);
       } else if (result.type === 'already-found') showFeedback({ tone: 'info', text: `${result.word} already found` });
     },
-    [submitPath, showFeedback, puzzle, found.length, finishGame],
+    [showFeedback, puzzle, found.length, finishGame],
+  );
+
+  const screenReader = useScreenReader();
+  // Tap-to-select: the path built so far, tied to the puzzle id so a new puzzle starts clean.
+  const [tapState, setTapState] = useState<{ puzzleId: string; path: Cell[] }>({ puzzleId: '', path: NO_PATH });
+  const tapPath = tapState.puzzleId === puzzle.id ? tapState.path : NO_PATH;
+
+  const handlePath = useCallback(
+    (path: Cell[]) => {
+      setTapState({ puzzleId: puzzle.id, path: NO_PATH }); // a drag replaces any half-built tap path
+      report(submitPath(path));
+    },
+    [puzzle.id, report, submitPath],
+  );
+
+  const handleTap = useCallback(
+    (cell: Cell) => {
+      if (isComplete || paused || tutorialOpen) return;
+      const tap = resolveChainTap(tapPath, cell, isBlocked, puzzle.grid, puzzle.placements, foundWords);
+      if (tap.type === 'submit') {
+        setTapState({ puzzleId: puzzle.id, path: NO_PATH });
+        report(submitPath(tap.path));
+        return;
+      }
+      if (tap.path === tapPath) return; // tapped a found letter
+      haptic('select');
+      setTapState({ puzzleId: puzzle.id, path: tap.path });
+      announceFeedback(
+        tap.path.length === 0 ? 'Path cleared' : `${tap.path.map((c) => puzzle.grid[c.row][c.col]).join(' ')}. Tap the next letter.`,
+      );
+    },
+    [isComplete, paused, tutorialOpen, tapPath, isBlocked, puzzle, foundWords, report, submitPath],
   );
 
   const { panHandlers, path } = useChainSelection({
@@ -147,6 +191,7 @@ export function ChainPuzzleScreen({ theme, difficulty, seed: initialSeed, avoidW
     isBlocked,
     onSelectionStart: () => haptic('select'),
     onSelectionEnd: handlePath,
+    onTap: handleTap,
   });
 
   const pause = useCallback(() => {
@@ -175,18 +220,20 @@ export function ChainPuzzleScreen({ theme, difficulty, seed: initialSeed, avoidW
     } else toast.show(hintsLeft === 0 ? 'No hints left for this puzzle' : 'Every word is already revealed');
   }, [revealHint, showFeedback, toast, hintsLeft]);
 
+  // Next game: a fresh theme at the difficulty for the player's (maybe new) Chain level.
   const continueAfterWin = useCallback(() => {
-    setGame(nextGame(theme));
-    setReviewing(false);
-    setPaused(false);
-  }, [theme]);
+    if (mode === 'daily') router.back();
+    else startAutoGame('chain', results, { replace: true });
+  }, [mode, results]);
 
-  const selectionText = path.length > 1 ? path.map((c) => puzzle.grid[c.row][c.col]).join('') : '';
+  // A live drag wins; otherwise show the tap path (a press on one cell is still just a tap).
+  const shownPath = path.length > 1 || tapPath.length === 0 ? path : tapPath;
+  const selectionText = shownPath.length > 1 ? shownPath.map((c) => puzzle.grid[c.row][c.col]).join('') : '';
   const themeConfig = getTheme(puzzle.theme);
 
   const difficultyLabel = difficulty[0].toUpperCase() + difficulty.slice(1);
   const header = (
-    <PuzzleHeader icon={themeConfig?.icon} title={puzzle.themeName} caption={`Chain · ${difficultyLabel}`} onHelp={isComplete ? undefined : openHelp} />
+    <PuzzleHeader icon={themeConfig?.icon} title={puzzle.themeName} caption={mode === 'daily' ? 'Daily puzzle · Chain' : `Chain · ${difficultyLabel}`} onHelp={isComplete ? undefined : openHelp} />
   );
 
   if (isComplete && !reviewing) {
@@ -197,10 +244,10 @@ export function ChainPuzzleScreen({ theme, difficulty, seed: initialSeed, avoidW
           elapsedMs={elapsedMs}
           wordCount={puzzle.words.length}
           hintsUsed={hinted.length}
-          totalXp={summary.xp}
+          mode="chain"
           completion={completion?.puzzleId === puzzle.id ? completion.summary : null}
-          isDaily={false}
-          continueLabel="Next Chain"
+          isDaily={mode === 'daily'}
+          continueLabel={mode === 'daily' ? 'Back Home' : 'Next Chain'}
           onContinue={continueAfterWin}
           onShare={async () => {
             if (!completion) return;
@@ -245,7 +292,13 @@ export function ChainPuzzleScreen({ theme, difficulty, seed: initialSeed, avoidW
         <SelectionChip
           selectionText={selectionText}
           feedback={feedback}
-          hint={found.length === 0 ? 'Trace words up, down or sideways' : ' '}
+          hint={
+            tapPath.length === 1
+              ? `${puzzle.grid[tapPath[0].row][tapPath[0].col]} selected — tap the next letter`
+              : found.length === 0
+                ? 'Trace or tap words up, down or sideways'
+                : ' '
+          }
         />
 
         <View style={[styles.board, { width: boardSize }]}>
@@ -253,10 +306,13 @@ export function ChainPuzzleScreen({ theme, difficulty, seed: initialSeed, avoidW
             grid={puzzle.grid}
             layout={layout}
             found={found}
-            path={path}
+            path={shownPath}
             hintCells={hintCells}
             panHandlers={panHandlers}
+            screenReader={screenReader}
+            onTileTap={handleTap}
             accessibilityLabel={`Chain grid, ${puzzle.rows} by ${puzzle.cols}`}
+            accessibilityHint="Tap a word's letters in order, moving up, down or sideways"
           />
           {paused && <PausedOverlay onResume={resume} />}
         </View>

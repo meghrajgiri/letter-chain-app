@@ -3,6 +3,7 @@ import { randomUUID } from 'expo-crypto';
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { AppState } from 'react-native';
 
+import { dailyKey as dailyKeyFor } from '../daily/daily';
 import { setHapticsEnabled } from '../feedback/haptics';
 import { THEMES } from '../puzzle/data/themes';
 import { DEFAULT_HISTORY_SIZE, wordHistory } from '../puzzle/game/wordHistory';
@@ -18,7 +19,10 @@ type ProgressApi = {
   ready: boolean;
   results: readonly GameResult[];
   summary: ProgressSummary;
+  /** Local date. */
   todayKey: string;
+  /** Today's daily puzzle date (UTC; the whole world shares one daily). */
+  dailyKey: string;
   /** Saves a finished game and returns it with what the completion screen shows. */
   recordGame: (game: NewGameResult) => { result: GameResult; completion: CompletionSummary };
   settings: AppSettings;
@@ -42,20 +46,26 @@ export function useProgress(): ProgressApi {
   return api;
 }
 
-/** Local date key that refreshes when the app returns to the foreground (e.g. after midnight). */
-function useTodayKey(): string {
-  const [key, setKey] = useState(() => localDateKey(new Date()));
+const dateKeys = (now: Date) => `${localDateKey(now)}|${dailyKeyFor(now)}`;
+
+/**
+ * Local date and daily (UTC) date keys, refreshed every minute and when the
+ * app returns to the foreground (so midnight rollovers show up).
+ */
+function useDateKeys(): { todayKey: string; dailyKey: string } {
+  const [keys, setKeys] = useState(() => dateKeys(new Date()));
   useEffect(() => {
     const sub = AppState.addEventListener('change', (state) => {
-      if (state === 'active') setKey(localDateKey(new Date()));
+      if (state === 'active') setKeys(dateKeys(new Date()));
     });
-    const timer = setInterval(() => setKey(localDateKey(new Date())), 60_000);
+    const timer = setInterval(() => setKeys(dateKeys(new Date())), 60_000);
     return () => {
       sub.remove();
       clearInterval(timer);
     };
   }, []);
-  return key;
+  const [todayKey, dailyKey] = keys.split('|');
+  return { todayKey, dailyKey };
 }
 
 /**
@@ -70,7 +80,7 @@ export function ProgressProvider({ children }: { children: ReactNode }) {
   const settingsRef = useRef<AppSettings>(DEFAULT_SETTINGS);
   const store = useRef<ProgressStore | null>(null);
   const resultsRef = useRef<GameResult[]>([]);
-  const todayKey = useTodayKey();
+  const { todayKey, dailyKey } = useDateKeys();
 
   useEffect(() => {
     let cancelled = false;
@@ -119,7 +129,7 @@ export function ProgressProvider({ children }: { children: ReactNode }) {
     resultsRef.current = next;
     setResults(next);
     store.current?.addResult(result).catch((error) => console.warn('Could not save result', error));
-    return { result, completion: summarizeCompletion(result, next, localDateKey(now), THEMES.length) };
+    return { result, completion: summarizeCompletion(result, next, dailyKeyFor(now), THEMES.length) };
   }, []);
 
   const updateSettings = useCallback((patch: Partial<AppSettings>) => {
@@ -167,10 +177,10 @@ export function ProgressProvider({ children }: { children: ReactNode }) {
     [],
   );
 
-  const summary = useMemo(() => computeProgress(results, todayKey, THEMES.length), [results, todayKey]);
+  const summary = useMemo(() => computeProgress(results, todayKey, THEMES.length, dailyKey), [results, todayKey, dailyKey]);
   const api = useMemo<ProgressApi>(
-    () => ({ ready, results, summary, todayKey, recordGame, settings, updateSettings, sync }),
-    [ready, results, summary, todayKey, recordGame, settings, updateSettings, sync],
+    () => ({ ready, results, summary, todayKey, dailyKey, recordGame, settings, updateSettings, sync }),
+    [ready, results, summary, todayKey, dailyKey, recordGame, settings, updateSettings, sync],
   );
 
   return <ProgressContext.Provider value={api}>{children}</ProgressContext.Provider>;

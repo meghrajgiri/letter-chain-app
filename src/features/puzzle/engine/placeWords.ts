@@ -1,3 +1,4 @@
+import { MAX_SAME_LENGTH } from './difficultyConfig';
 import { wordsConflict } from './selectWords';
 import { DIRECTION_NAMES, DIRECTION_VECTORS } from './directions';
 import type { Rng } from './random';
@@ -230,8 +231,11 @@ export function placeWords(input: PlaceWordsInput): PlaceWordsResult | null {
     return true;
   };
 
-  for (const word of queue) {
+  for (const [qi, word] of queue.entries()) {
     if (tryPlace(word)) continue;
+    // Lengths already used by placed and still-queued words (keeps the length mix).
+    const lengthUse = (n: number) =>
+      placements.filter((p) => p.word.length === n).length + queue.slice(qi + 1).filter((w) => w.length === n).length;
 
     // Substitute a reserve word that is no longer and does not collide with placed words.
     let substituted = false;
@@ -239,6 +243,7 @@ export function placeWords(input: PlaceWordsInput): PlaceWordsResult | null {
     for (let i = 0; i < reserves.length; i++) {
       const reserve = reserves[i];
       if (reserve.length > word.length || reserve.length > letterBudget) continue;
+      if (lengthUse(reserve.length) >= MAX_SAME_LENGTH) continue;
       if (placements.some((p) => wordsConflict(p.word, reserve))) continue;
       reserves.splice(i, 1);
       i--;

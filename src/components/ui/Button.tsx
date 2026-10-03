@@ -40,7 +40,7 @@ export const Button = memo(function Button({
   const ink =
     variant === 'primary' ? colors.primaryInk : variant === 'white' ? colors.primaryDark : colors.primary;
   const iconNode = icon ? <Icon name={icon} size={size === 'sm' ? 18 : 22} color={ink} /> : null;
-  const height = size === 'lg' ? 56 : size === 'md' ? 48 : 40;
+  const height = size === 'lg' ? 56 : size === 'md' ? 48 : 44;
 
   return (
     <Pressable

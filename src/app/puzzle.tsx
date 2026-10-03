@@ -1,5 +1,7 @@
-import { useLocalSearchParams } from 'expo-router';
+import { Redirect, useLocalSearchParams } from 'expo-router';
 
+import { DAILY_DIFFICULTY, dailyKey } from '@/features/daily/daily';
+import { useDailyForPlay } from '@/features/daily/dailyStore';
 import { THEMES } from '@/features/puzzle/data/themes';
 import { normalizeSeed } from '@/features/puzzle/engine/random';
 import { DIFFICULTIES, type Difficulty } from '@/features/puzzle/engine/types';
@@ -15,7 +17,7 @@ type Params = {
   /** Comma-separated avoid list; with `seed`, reproduces a Studio puzzle exactly. */
   avoid?: string;
   mode?: string;
-  /** Daily puzzle's local date (YYYY-MM-DD). */
+  /** Daily puzzle's UTC date (YYYY-MM-DD), with `mode=daily`. */
   date?: string;
 };
 
@@ -26,6 +28,22 @@ export default function PuzzleRoute() {
   const theme = THEMES.some((t) => t.id === params.theme) ? params.theme! : THEMES[0].id;
   const difficulty = DIFFICULTIES.includes(params.difficulty as Difficulty) ? (params.difficulty as Difficulty) : 'medium';
   const mode: PuzzleMode = params.mode === 'daily' ? 'daily' : 'free';
+
+  const daily = useDailyForPlay(mode === 'daily' ? (params.date ?? dailyKey()) : null);
+  if (daily) {
+    if (daily.mode === 'chain') return <Redirect href={{ pathname: '/chain', params: { mode: 'daily', date: daily.date } }} />;
+    return (
+      <PuzzleScreen
+        key={`daily-${daily.date}`}
+        theme={daily.theme}
+        difficulty={DAILY_DIFFICULTY}
+        mode="daily"
+        seed={0}
+        preset={daily.puzzle}
+        dailyDate={daily.date}
+      />
+    );
+  }
 
   return (
     // Remount on a new puzzle request so per-puzzle state starts fresh.
@@ -38,7 +56,9 @@ export default function PuzzleRoute() {
       gridSize={toNumber(params.gridSize)}
       wordCount={toNumber(params.wordCount)}
       avoidWords={params.avoid ? params.avoid.split(',') : undefined}
-      dailyDate={mode === 'daily' ? params.date : undefined}
     />
   );
 }
+
+/** Friendly fallback if the puzzle can't be generated or the screen crashes. */
+export { ErrorScreen as ErrorBoundary } from '@/components/ErrorScreen';

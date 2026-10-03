@@ -13,6 +13,8 @@ type Options = {
   onSelectionStart?: () => void;
   /** Called on release with the straight-line selection. */
   onSelectionEnd: (selection: Selection) => void;
+  /** Called instead of `onSelectionEnd` when the finger lifts without leaving the first cell. */
+  onTap?: (cell: Cell) => void;
 };
 
 /**
@@ -33,6 +35,7 @@ export function usePuzzleSelection(options: Options): {
   });
   const startCell = useRef<Cell | null>(null);
   const endCell = useRef<Cell | null>(null);
+  const moved = useRef(false);
   // Page offset of the grid, derived from the grant event (robust to scrolling/layout).
   const offset = useRef({ x: 0, y: 0 });
 
@@ -54,6 +57,7 @@ export function usePuzzleSelection(options: Options): {
         if (!cell) return;
         startCell.current = cell;
         endCell.current = cell;
+        moved.current = false;
         setSelection({ start: cell, end: cell });
         latest.current.onSelectionStart?.();
       },
@@ -67,6 +71,7 @@ export function usePuzzleSelection(options: Options): {
         const previous = endCell.current;
         if (previous && previous.row === end.row && previous.col === end.col) return;
         endCell.current = end;
+        moved.current = true;
         setSelection({ start, end });
       },
 
@@ -76,7 +81,9 @@ export function usePuzzleSelection(options: Options): {
         startCell.current = null;
         endCell.current = null;
         setSelection(null);
-        if (start && end) latest.current.onSelectionEnd({ start, end });
+        if (!start || !end) return;
+        if (!moved.current && latest.current.onTap) latest.current.onTap(start);
+        else latest.current.onSelectionEnd({ start, end });
       },
 
       onPanResponderTerminate: () => {

@@ -1,59 +1,95 @@
-import { router, useLocalSearchParams } from 'expo-router';
+import { useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AppText } from '@/components/ui/AppText';
 import { Button } from '@/components/ui/Button';
-import { ChipGroup } from '@/components/ui/ChipGroup';
 import { TAB_BAR_SPACE } from '@/components/ui/FloatingTabBar';
-import { CHAIN_CONFIGS } from '@/features/chain/engine/config';
-import { CHAIN_DIFFICULTIES, type ChainDifficulty } from '@/features/chain/engine/types';
-import { THEMES } from '@/features/puzzle/data/themes';
-import { getDifficultyConfig } from '@/features/puzzle/engine/difficultyConfig';
-import { DIFFICULTIES, type Difficulty } from '@/features/puzzle/engine/types';
-import { colors, difficultyColors, radius, shadows, spacing } from '@/theme/tokens';
+import { Icon, type IconName } from '@/components/ui/Icon';
+import { difficultyLabel, startAutoGame } from '@/features/play/autoPlay';
+import { difficultyForLevel, nextDifficultyStep, type GameMode, type LevelInfo } from '@/features/progress';
+import { useProgress } from '@/features/progress/ProgressProvider';
+import { colors, radius, shadows, spacing } from '@/theme/tokens';
 
-const DIFFICULTY_OPTIONS = DIFFICULTIES.map((d) => ({
-  value: d,
-  label: d[0].toUpperCase() + d.slice(1),
-  accent: difficultyColors[d],
-}));
+const MODES: { mode: GameMode; title: string; description: string; icon: IconName; iconBg: string; iconColor: string }[] = [
+  {
+    mode: 'classic',
+    title: 'Classic',
+    description: 'Find the listed words in straight lines.',
+    icon: 'self-improvement',
+    iconBg: colors.primarySoft,
+    iconColor: colors.primary,
+  },
+  {
+    mode: 'chain',
+    title: 'Chain',
+    description: 'Every letter belongs to a hidden word. Trace them up, down and sideways.',
+    icon: 'gesture',
+    iconBg: colors.yellowSoft,
+    iconColor: colors.yellowInk,
+  },
+];
 
-type Mode = 'classic' | 'chain';
+function ModeOption({
+  option,
+  level,
+  selected,
+  onSelect,
+}: {
+  option: (typeof MODES)[number];
+  level: LevelInfo;
+  selected: boolean;
+  onSelect: () => void;
+}) {
+  const difficulty = difficultyLabel(difficultyForLevel(option.mode, level.level));
+  const next = nextDifficultyStep(option.mode, level.level);
+  return (
+    <Pressable
+      onPress={onSelect}
+      accessibilityRole="radio"
+      accessibilityState={{ selected }}
+      accessibilityLabel={`${option.title}. Level ${level.level}, ${difficulty} puzzles. ${option.description}`}
+      android_ripple={{ color: colors.primarySoft }}
+      style={({ pressed }) => [styles.mode, selected && styles.modeSelected, pressed && styles.pressed]}
+    >
+      <View style={styles.modeTop}>
+        <View style={[styles.modeIcon, { backgroundColor: option.iconBg }]}>
+          <Icon name={option.icon} size={28} color={option.iconColor} />
+        </View>
+        <View style={styles.flex}>
+          <AppText variant="headlineSm">{option.title}</AppText>
+          <AppText variant="labelMd" color={colors.primaryDark}>
+            Level {level.level} · {difficulty}
+          </AppText>
+        </View>
+        <Icon name={selected ? 'radio-button-checked' : 'radio-button-unchecked'} size={24} color={selected ? colors.primary : colors.inkSubtle} />
+      </View>
+      <AppText variant="bodyMd" color={colors.inkMuted}>
+        {option.description}
+      </AppText>
+      <View style={styles.track}>
+        <View style={[styles.fill, { width: `${Math.round(level.progress * 100)}%` }]} />
+      </View>
+      <AppText variant="bodySm" color={colors.inkMuted}>
+        {level.xp - level.levelStartXp} / {level.nextLevelXp - level.levelStartXp} XP to level {level.level + 1}
+        {next ? ` · ${difficultyLabel(next.difficulty)} from level ${next.fromLevel}` : ' · Top difficulty'}
+      </AppText>
+    </Pressable>
+  );
+}
 
-const MODE_OPTIONS = [
-  { value: 'classic', label: 'Classic' },
-  { value: 'chain', label: 'Chain' },
-] as const;
-
-const CHAIN_DIFFICULTY_OPTIONS = CHAIN_DIFFICULTIES.map((d) => ({
-  value: d,
-  label: d[0].toUpperCase() + d.slice(1),
-  accent: difficultyColors[d],
-}));
-
-/** Free play: pick a mode, theme and difficulty. */
+/** Free play: pick Classic or Chain. The theme and difficulty are chosen for the player. */
 export function PlayMenuScreen() {
   const params = useLocalSearchParams<{ mode?: string }>();
-  const [mode, setMode] = useState<Mode>(params.mode === 'chain' ? 'chain' : 'classic');
+  const { results, summary } = useProgress();
+  const [mode, setMode] = useState<GameMode>(params.mode === 'chain' ? 'chain' : 'classic');
   // Home's mode cards open this tab with a preselected mode (adjust state when the param changes).
   const [modeParam, setModeParam] = useState(params.mode);
   if (params.mode !== modeParam) {
     setModeParam(params.mode);
     if (params.mode === 'chain' || params.mode === 'classic') setMode(params.mode);
   }
-  const [difficulty, setDifficulty] = useState<Difficulty>('medium');
-  const [chainDifficulty, setChainDifficulty] = useState<ChainDifficulty>('medium');
-  const [theme, setTheme] = useState(THEMES[0].id);
-  const config = getDifficultyConfig(difficulty);
-  const chainConfig = CHAIN_CONFIGS[chainDifficulty];
-  const selected = THEMES.find((t) => t.id === theme)!;
-
-  const play = (themeId: string) =>
-    mode === 'chain'
-      ? router.push({ pathname: '/chain', params: { theme: themeId, difficulty: chainDifficulty } })
-      : router.push({ pathname: '/puzzle', params: { theme: themeId, difficulty } });
 
   return (
     <SafeAreaView style={styles.safe} edges={['top', 'left', 'right']}>
@@ -63,77 +99,37 @@ export function PlayMenuScreen() {
             Free Play
           </AppText>
           <AppText variant="bodyMd" color={colors.inkMuted}>
-            {mode === 'chain'
-              ? 'Every letter belongs to one hidden word. Trace them up, down and sideways.'
-              : 'Find the listed words in straight lines. Relax and solve at your own pace.'}
+            Pick a mode. Each game brings a new theme, and puzzles get harder as you level up.
           </AppText>
         </View>
 
-        <View style={styles.section}>
-          <AppText variant="labelMd" color={colors.inkMuted} style={styles.label}>
-            Mode
-          </AppText>
-          <ChipGroup options={MODE_OPTIONS} value={mode} onChange={setMode} accessibilityLabel="Mode" />
+        <View style={styles.modes} accessibilityRole="radiogroup" accessibilityLabel="Mode">
+          {MODES.map((option) => (
+            <ModeOption
+              key={option.mode}
+              option={option}
+              level={summary.levels[option.mode]}
+              selected={mode === option.mode}
+              onSelect={() => setMode(option.mode)}
+            />
+          ))}
         </View>
 
-        <View style={styles.section}>
-          <AppText variant="labelMd" color={colors.inkMuted} style={styles.label}>
-            Difficulty
+        <View style={styles.note}>
+          <Icon name="auto-awesome" size={20} color={colors.primary} />
+          <AppText variant="bodySm" color={colors.inkMuted} style={styles.flex}>
+            Every game has 4–6 words of different lengths. Classic and Chain levels grow separately.
           </AppText>
-          {mode === 'chain' ? (
-            <>
-              <ChipGroup options={CHAIN_DIFFICULTY_OPTIONS} value={chainDifficulty} onChange={setChainDifficulty} accessibilityLabel="Difficulty" />
-              <AppText variant="bodySm" color={colors.inkMuted}>
-                {chainConfig.rows}×{chainConfig.cols} grid · {chainConfig.wordCount.min}–{chainConfig.wordCount.max} hidden words · 3 hints
-              </AppText>
-            </>
-          ) : (
-            <>
-              <ChipGroup options={DIFFICULTY_OPTIONS} value={difficulty} onChange={setDifficulty} accessibilityLabel="Difficulty" />
-              <AppText variant="bodySm" color={colors.inkMuted}>
-                {config.gridSize}×{config.gridSize} grid · {config.wordCount.min}–{config.wordCount.max} words
-                {difficulty === 'easy' ? ' · forwards only' : difficulty === 'medium' ? ' · some backwards' : ' · all 8 directions'}
-              </AppText>
-            </>
-          )}
-        </View>
-
-        <View style={styles.section}>
-          <AppText variant="labelMd" color={colors.inkMuted} style={styles.label}>
-            Theme
-          </AppText>
-          <View style={styles.themes} accessibilityRole="radiogroup">
-            {THEMES.map((t) => {
-              const isSelected = t.id === theme;
-              return (
-                <Pressable
-                  key={t.id}
-                  onPress={() => setTheme(t.id)}
-                  onLongPress={() => play(t.id)}
-                  accessibilityRole="radio"
-                  accessibilityState={{ selected: isSelected }}
-                  accessibilityLabel={t.name}
-                  style={({ pressed }) => [styles.theme, isSelected && styles.themeSelected, pressed && styles.pressed]}
-                >
-                  <AppText style={styles.themeIcon}>{t.icon}</AppText>
-                  <AppText variant="labelMd" color={isSelected ? colors.primary : colors.ink} numberOfLines={1}>
-                    {t.name}
-                  </AppText>
-                </Pressable>
-              );
-            })}
-          </View>
         </View>
       </ScrollView>
 
       <View style={styles.footer}>
-        <Button label={`Play ${selected.name}`} icon="play-arrow" size="lg" onPress={() => play(theme)} style={styles.flex} />
         <Button
-          label="Surprise"
-          icon="casino"
-          variant="secondary"
+          label={`Play ${mode === 'chain' ? 'Chain' : 'Classic'}`}
+          icon="play-arrow"
           size="lg"
-          onPress={() => play(THEMES[Math.floor(Math.random() * THEMES.length)].id)}
+          onPress={() => startAutoGame(mode, results)}
+          style={styles.flex}
         />
       </View>
     </SafeAreaView>
@@ -142,28 +138,26 @@ export function PlayMenuScreen() {
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.background },
-  content: { padding: spacing.md, paddingBottom: TAB_BAR_SPACE + 80, gap: spacing.xl },
+  content: { padding: spacing.md, paddingBottom: TAB_BAR_SPACE + 80, gap: spacing.lg },
   titleBlock: { gap: 4, paddingTop: spacing.sm },
-  section: { gap: 12 },
-  label: { textTransform: 'uppercase', letterSpacing: 0.8 },
-  themes: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
-  theme: {
-    width: '30%',
-    flexGrow: 1,
-    minHeight: 84,
-    borderRadius: radius.lg,
+  modes: { gap: 12 },
+  mode: {
+    gap: 10,
+    padding: spacing.md,
+    borderRadius: radius.xl,
     borderWidth: 1.5,
-    borderColor: colors.border,
     borderBottomWidth: 3,
+    borderColor: colors.border,
     backgroundColor: colors.surface,
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    padding: spacing.sm,
+    overflow: 'hidden',
   },
-  themeSelected: { borderColor: colors.primary, backgroundColor: colors.primarySoft },
+  modeSelected: { borderColor: colors.primary, backgroundColor: colors.surfaceLow },
   pressed: { opacity: 0.85 },
-  themeIcon: { fontSize: 26, lineHeight: 32 },
+  modeTop: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  modeIcon: { width: 52, height: 52, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center' },
+  track: { height: 8, borderRadius: 4, backgroundColor: colors.surfaceMuted, overflow: 'hidden' },
+  fill: { height: '100%', borderRadius: 4, backgroundColor: colors.primary },
+  note: { flexDirection: 'row', alignItems: 'center', gap: 10, padding: spacing.md, borderRadius: radius.lg, backgroundColor: colors.surfaceLow },
   footer: {
     position: 'absolute',
     left: 0,

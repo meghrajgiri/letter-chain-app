@@ -23,13 +23,15 @@ import { WordList } from '@/features/puzzle/components/WordList';
 import { getTheme } from '@/features/puzzle/data/themes';
 import { getCellsBetween } from '@/features/puzzle/engine/getCellsBetween';
 import { randomSeed } from '@/features/puzzle/engine/random';
-import type { Difficulty } from '@/features/puzzle/engine/types';
-import { readCells } from '@/features/puzzle/game/selection';
+import type { Cell, Difficulty, Puzzle } from '@/features/puzzle/engine/types';
+import { readCells, resolveTap } from '@/features/puzzle/game/selection';
 import { getTileLayout } from '@/features/puzzle/game/tileLayout';
 import { wordHistory } from '@/features/puzzle/game/wordHistory';
 import { usePuzzle } from '@/features/puzzle/hooks/usePuzzle';
 import { usePuzzleSelection, type Selection } from '@/features/puzzle/hooks/usePuzzleSelection';
 import { usePuzzleTimer } from '@/features/puzzle/hooks/usePuzzleTimer';
+import { announceFeedback, useScreenReader } from '@/lib/useScreenReader';
+import { startAutoGame } from '@/features/play/autoPlay';
 import { colors, radius, shadows, spacing } from '@/theme/tokens';
 
 export type PuzzleMode = 'free' | 'daily';
@@ -43,8 +45,10 @@ type Props = {
   wordCount?: number;
   /** Used only with an explicit `seed`, to reproduce a specific puzzle. */
   avoidWords?: string[];
-  /** Local date ('YYYY-MM-DD') of the daily puzzle, when `mode` is 'daily'. */
+  /** UTC date ('YYYY-MM-DD') of the daily puzzle, when `mode` is 'daily'. */
   dailyDate?: string;
+  /** The daily puzzle (already built), when `mode` is 'daily'. */
+  preset?: Puzzle;
 };
 
 const PADDING = spacing.md;
@@ -57,12 +61,12 @@ const MAX_BOARD = 560;
 /** A fresh random game that steers away from this theme's recently played words. */
 const nextGame = (theme: string) => ({ seed: randomSeed(), avoidWords: wordHistory.recentWords(theme) });
 
-export function PuzzleScreen({ theme, difficulty, mode = 'free', seed: initialSeed, gridSize, wordCount, avoidWords, dailyDate }: Props) {
+export function PuzzleScreen({ theme, difficulty, mode = 'free', seed: initialSeed, gridSize, wordCount, avoidWords, dailyDate, preset }: Props) {
   const toast = useToast();
-  const { recordGame, summary, settings, updateSettings } = useProgress();
+  const { recordGame, results, settings, updateSettings } = useProgress();
   const [completion, setCompletion] = useState<{ puzzleId: string; summary: CompletionSummary; result: GameResult } | null>(null);
   // An explicit seed (daily puzzle, Studio link) reproduces that exact puzzle, so it ignores history.
-  const [game, setGame] = useState(() =>
+  const [game] = useState(() =>
     initialSeed !== undefined ? { seed: initialSeed, avoidWords: avoidWords ?? [] } : nextGame(theme),
   );
   const { puzzle, found, hinted, hintCells, hintsUsed, hintsLeft, submitSelection, revealHint, revealWord, isComplete } = usePuzzle({
@@ -70,6 +74,7 @@ export function PuzzleScreen({ theme, difficulty, mode = 'free', seed: initialSe
     difficulty,
     gridSize,
     wordCount,
+    preset,
     ...game,
   });
 
@@ -131,16 +136,62 @@ export function PuzzleScreen({ theme, difficulty, mode = 'free', seed: initialSe
     setCompletion({ puzzleId: puzzle.id, summary: done, result });
   }, [stopTimer, recordGame, puzzle, mode, dailyDate]);
 
-  const handleSelectionEnd = useCallback(
-    ({ start, end }: Selection) => {
+  const screenReader = useScreenReader();
+  // Tap-to-select: the first tapped letter waits here for the last one. Tied to
+  // the puzzle id so a new puzzle starts without a stale anchor.
+  const [tapAnchor, setTapAnchor] = useState<{ puzzleId: string; cell: Cell } | null>(null);
+  const anchor = tapAnchor?.puzzleId === puzzle.id ? tapAnchor.cell : null;
+
+  /** Checks a straight line (from a drag or two taps). Returns false when it isn't a word. */
+  const submitLine = useCallback(
+    (start: Cell, end: Cell): boolean => {
       const result = submitSelection(start, end);
       if (result.type === 'found') {
         haptic('found');
         showFeedback({ tone: 'found', text: `${result.word} +${pointsPerWord('classic', puzzle.difficulty)} pts` });
+        announceFeedback(`Found ${result.word}`);
         if (found.length + 1 === puzzle.words.length) finishGame(hintsUsed);
-      } else if (result.type === 'already-found') showFeedback({ tone: 'info', text: `${result.word} already found` });
+        return true;
+      }
+      if (result.type === 'already-found') {
+        showFeedback({ tone: 'info', text: `${result.word} already found` });
+        announceFeedback(`${result.word} already found`);
+        return true;
+      }
+      return false;
     },
     [submitSelection, showFeedback, found.length, puzzle, finishGame, hintsUsed],
+  );
+
+  const handleSelectionEnd = useCallback(
+    ({ start, end }: Selection) => {
+      setTapAnchor(null); // a drag replaces any half-finished tap selection
+      submitLine(start, end);
+    },
+    [submitLine],
+  );
+
+  const handleTap = useCallback(
+    (cell: Cell) => {
+      if (isComplete || paused || tutorialOpen) return;
+      const tap = resolveTap(anchor, cell);
+      if (tap.type === 'anchor') {
+        haptic('select');
+        setTapAnchor({ puzzleId: puzzle.id, cell: tap.anchor });
+        announceFeedback(`${puzzle.grid[cell.row][cell.col]} selected. Tap the last letter of the word.`);
+      } else if (tap.type === 'cancel') {
+        setTapAnchor(null);
+        announceFeedback('Selection cleared');
+      } else {
+        setTapAnchor(null);
+        if (!submitLine(tap.start, tap.end)) {
+          haptic('warning');
+          showFeedback({ tone: 'info', text: 'No word there — try again' });
+          announceFeedback('No word there');
+        }
+      }
+    },
+    [isComplete, paused, tutorialOpen, anchor, puzzle, submitLine, showFeedback],
   );
 
   const hint = useCallback(() => {
@@ -165,6 +216,7 @@ export function PuzzleScreen({ theme, difficulty, mode = 'free', seed: initialSe
     enabled: !isComplete && !paused && !tutorialOpen,
     onSelectionStart: () => haptic('select'),
     onSelectionEnd: handleSelectionEnd,
+    onTap: handleTap,
   });
 
   const pause = useCallback(() => {
@@ -191,11 +243,13 @@ export function PuzzleScreen({ theme, difficulty, mode = 'free', seed: initialSe
       router.back();
       return;
     }
-    setGame(nextGame(theme));
-    setReviewing(false);
-    setPaused(false);
-  }, [mode, theme]);
+    // Next game: a fresh theme at the difficulty for the player's (maybe new) Classic level.
+    startAutoGame('classic', results, { replace: true });
+  }, [mode, results]);
 
+  // While a tap anchor waits, keep it lit (pressing another cell is still just a tap).
+  const isLine = selection !== null && (selection.start.row !== selection.end.row || selection.start.col !== selection.end.col);
+  const shownSelection = isLine || !anchor ? selection : { start: anchor, end: anchor };
   const selectionCells = selection ? getCellsBetween(selection.start, selection.end) : null;
   const selectionText = selectionCells && selectionCells.length > 1 ? readCells(puzzle.grid, selectionCells) : '';
   const themeConfig = getTheme(puzzle.theme);
@@ -204,7 +258,7 @@ export function PuzzleScreen({ theme, difficulty, mode = 'free', seed: initialSe
     <PuzzleHeader
       icon={themeConfig?.icon}
       title={puzzle.themeName}
-      caption={mode === 'daily' ? `Daily puzzle · ${difficultyLabel}` : difficultyLabel}
+      caption={mode === 'daily' ? 'Daily puzzle · Classic' : difficultyLabel}
       onHelp={isComplete ? undefined : openHelp}
     />
   );
@@ -217,7 +271,7 @@ export function PuzzleScreen({ theme, difficulty, mode = 'free', seed: initialSe
           elapsedMs={elapsedMs}
           wordCount={puzzle.words.length}
           hintsUsed={hintsUsed}
-          totalXp={summary.xp}
+          mode="classic"
           completion={completion?.puzzleId === puzzle.id ? completion.summary : null}
           isDaily={mode === 'daily'}
           continueLabel={mode === 'daily' ? 'Back Home' : 'Continue'}
@@ -266,7 +320,13 @@ export function PuzzleScreen({ theme, difficulty, mode = 'free', seed: initialSe
         <SelectionChip
           selectionText={selectionText}
           feedback={feedback}
-          hint={found.length === 0 ? 'Drag across letters to select a word' : ' '}
+          hint={
+            anchor
+              ? `${puzzle.grid[anchor.row][anchor.col]} selected — now tap the word’s last letter`
+              : found.length === 0
+                ? 'Drag across a word, or tap its first and last letters'
+                : ' '
+          }
         />
 
         <View style={[styles.board, { width: boardSize }]}>
@@ -274,10 +334,13 @@ export function PuzzleScreen({ theme, difficulty, mode = 'free', seed: initialSe
             grid={puzzle.grid}
             layout={tileLayout}
             found={found}
-            selection={selection}
+            selection={shownSelection}
             hintCells={hintCells}
             panHandlers={panHandlers}
+            screenReader={screenReader}
+            onTileTap={handleTap}
             accessibilityLabel={`Word search grid, ${puzzle.gridSize} by ${puzzle.gridSize}`}
+            accessibilityHint="Tap a word's first letter, then its last letter"
           />
           {paused && <PausedOverlay onResume={resume} />}
         </View>

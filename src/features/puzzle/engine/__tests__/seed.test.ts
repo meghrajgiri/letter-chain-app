@@ -34,7 +34,7 @@ describe('seeded generation', () => {
     const a = generatePuzzle({ theme: 'animals', difficulty: 'medium', seed: 12345 });
     const b = generatePuzzle({ theme: 'animals', difficulty: 'medium', seed: 12345 });
     expect(a).toEqual(b);
-    expect(a.id).toBe('animals-medium-10x10-auto-12345');
+    expect(a.id).toBe('animals-medium-8x8-auto-12345');
   });
 
   it('is stable across runs (snapshot)', () => {

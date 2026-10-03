@@ -13,15 +13,19 @@ export type SelectChainWordsInput = {
   avoid?: readonly string[];
   /** Search step budget. */
   budget?: number;
+  /** Most words allowed to share one length (keeps a mix of lengths). */
+  maxSameLength?: number;
 };
 
 /**
  * Picks words whose lengths add up exactly to `totalLetters`, with a word
- * count in range and no word contained in another. Fresh words are tried
+ * count in range, no word contained in another and at most `maxSameLength`
+ * words of any one length. Fresh words are tried
  * before recently used ones. Returns null if no combination is found.
  */
 export function selectChainWords(input: SelectChainWordsInput): string[] | null {
   const { totalLetters, count, length, rng } = input;
+  const maxSame = input.maxSameLength ?? Infinity;
   const recent = new Set(input.avoid ?? []);
   const eligible = input.candidates.filter((w) => w.length >= length.min && w.length <= length.max);
   const fresh = rng.shuffle(eligible.filter((w) => !recent.has(w)));
@@ -45,6 +49,7 @@ export function selectChainWords(input: SelectChainWordsInput): string[] | null 
       for (let i = start; i < pool.length; i++) {
         const word = pool[i];
         if (word.length > need) continue;
+        if (chosen.filter((c) => c.length === word.length).length >= maxSame) continue;
         if (chosen.some((c) => wordsConflict(c, word))) continue;
         chosen.push(word);
         if (search(i + 1, sum + word.length)) return true;

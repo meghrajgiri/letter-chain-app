@@ -9,9 +9,9 @@ const clamp01 = (value: number) => Math.min(1, Math.max(0, value));
  */
 export const DIFFICULTY_FACTORS: Record<DifficultyFactorKey, { max: number; normalize: (m: PuzzleMetrics) => number }> = {
   // Bigger grids mean more scanning.
-  gridSize: { max: 14, normalize: (m) => clamp01((m.gridSize - 6) / 10) },
-  // More words means a longer solve.
-  wordCount: { max: 11, normalize: (m) => clamp01((m.wordCount - 4) / 16) },
+  gridSize: { max: 14, normalize: (m) => clamp01((m.gridSize - 6) / 5) },
+  // More words means a longer solve (games have 4–6 words).
+  wordCount: { max: 11, normalize: (m) => clamp01((m.wordCount - 3) / 3) },
   // Longer words are easier to spot once started but slower to confirm; mild weight.
   wordLength: { max: 8, normalize: (m) => clamp01((m.averageWordLength - 3.5) / 6) },
   // Diagonals are harder to scan than rows/columns.

@@ -1,8 +1,8 @@
 import { memo, useMemo } from 'react';
-import { StyleSheet, View, type GestureResponderHandlers } from 'react-native';
+import { Pressable, StyleSheet, View, type GestureResponderHandlers } from 'react-native';
 
 import { colors, radius, wordColors } from '@/theme/tokens';
-import { LetterTile, TILE_IDLE, TILE_SELECTED } from '../../puzzle/components/LetterTile';
+import { LetterTile, TILE_IDLE, TILE_SELECTED, tileLabel } from '../../puzzle/components/LetterTile';
 import { cellKey } from '../../puzzle/engine/gridScan';
 import type { Cell } from '../../puzzle/engine/types';
 import type { TileLayout } from '../../puzzle/game/tileLayout';
@@ -16,6 +16,10 @@ type Props = {
   hintCells: readonly Cell[];
   panHandlers?: GestureResponderHandlers;
   accessibilityLabel?: string;
+  accessibilityHint?: string;
+  /** Screen reader mode: every tile becomes a button that calls `onTileTap`. */
+  screenReader?: boolean;
+  onTileTap?: (cell: Cell) => void;
 };
 
 export const CHAIN_WELL_PADDING = 6;
@@ -30,7 +34,18 @@ function connectorsFor(cells: readonly Cell[], color: string, prefix: string): C
 }
 
 /** Chain-mode letter grid: tiles plus connectors that trace each found word and the live path. */
-export const ChainGrid = memo(function ChainGrid({ grid, layout, found, path, hintCells, panHandlers, accessibilityLabel }: Props) {
+export const ChainGrid = memo(function ChainGrid({
+  grid,
+  layout,
+  found,
+  path,
+  hintCells,
+  panHandlers,
+  accessibilityLabel,
+  accessibilityHint,
+  screenReader = false,
+  onTileTap,
+}: Props) {
   const rows = grid.length;
   const cols = grid[0]?.length ?? 0;
 
@@ -54,10 +69,10 @@ export const ChainGrid = memo(function ChainGrid({ grid, layout, found, path, hi
   const thickness = Math.max(6, Math.round(tile * 0.34));
 
   return (
-    <View style={styles.well} accessibilityLabel={accessibilityLabel}>
+    <View style={styles.well} accessibilityLabel={accessibilityLabel} accessibilityHint={accessibilityHint}>
       <View
-        style={{ width: cols * pitch - layout.gap, height: rows * pitch - layout.gap, gap: layout.gap, pointerEvents: 'box-only' }}
-        {...panHandlers}
+        style={{ width: cols * pitch - layout.gap, height: rows * pitch - layout.gap, gap: layout.gap, pointerEvents: screenReader ? 'auto' : 'box-only' }}
+        {...(screenReader ? undefined : panHandlers)}
       >
         {connectors.map(({ key, a, b, color }) => {
           const horizontal = a.row === b.row;
@@ -79,7 +94,14 @@ export const ChainGrid = memo(function ChainGrid({ grid, layout, found, path, hi
             {row.map((letter, c) => {
               const key = `${r},${c}`;
               const state = selected.has(key) ? TILE_SELECTED : (foundColor.get(key) ?? TILE_IDLE);
-              return <LetterTile key={c} letter={letter} size={tile} state={state} ring={rings.has(key)} />;
+              const ring = rings.has(key);
+              const el = <LetterTile key={c} letter={letter} size={tile} state={state} ring={ring} />;
+              if (!screenReader) return el;
+              return (
+                <Pressable key={c} accessibilityRole="button" accessibilityLabel={tileLabel(letter, r, c, state, ring)} onPress={() => onTileTap?.({ row: r, col: c })}>
+                  {el}
+                </Pressable>
+              );
             })}
           </View>
         ))}

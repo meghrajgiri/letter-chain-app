@@ -30,7 +30,12 @@ export function ChipGroup<T extends string>({ options, value, onChange, scroll, 
         accessibilityLabel={option.label}
         onPress={() => onChange(option.value)}
         hitSlop={4}
-        style={[styles.chip, selected && { backgroundColor: option.accent ?? colors.primary, borderColor: option.accent ?? colors.primary }]}
+        android_ripple={{ color: colors.primarySoft }}
+        style={({ pressed }) => [
+          styles.chip,
+          selected && { backgroundColor: option.accent ?? colors.primary, borderColor: option.accent ?? colors.primary },
+          pressed && !selected && styles.pressed,
+        ]}
       >
         <AppText variant="labelMd" color={selected ? colors.primaryInk : colors.ink}>
           {option.label}
@@ -70,5 +75,7 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
     backgroundColor: colors.surface,
     justifyContent: 'center',
+    overflow: 'hidden',
   },
+  pressed: { backgroundColor: colors.surfaceMuted },
 });

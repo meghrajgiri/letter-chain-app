@@ -31,7 +31,7 @@ export const WordList = memo(function WordList({ words, found, hinted = [], onLa
         <AppText variant="labelMd" color={colors.inkMuted} style={styles.title} accessibilityRole="header">
           Words to find ({found.length}/{words.length})
         </AppText>
-        <AppText variant="labelMd" color={colors.primary}>
+        <AppText variant="labelMd" color={colors.ink}>
           {remaining === 0 ? 'All found!' : `${remaining} Remaining`}
         </AppText>
       </View>
@@ -58,8 +58,9 @@ export const WordList = memo(function WordList({ words, found, hinted = [], onLa
               </View>
               <AppText
                 variant={compact ? 'labelMd' : 'labelLg'}
-                color={c ? c.ink : isHinted ? colors.yellowInk : colors.primary}
+                color={c ? c.ink : isHinted ? colors.yellowInk : colors.primaryDark}
                 style={c ? styles.struck : undefined}
+                maxFontSizeMultiplier={1.2}
               >
                 {word}
               </AppText>
@@ -92,10 +93,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 5,
     paddingHorizontal: 12,
-    height: 34,
+    minHeight: 34,
     borderRadius: radius.pill,
   },
-  chipCompact: { height: 28, paddingHorizontal: 9, gap: 3 },
+  chipCompact: { minHeight: 28, paddingHorizontal: 9, gap: 3 },
   chipTodo: { backgroundColor: colors.primarySoft },
   chipHinted: { backgroundColor: colors.yellowSoft },
   // Barely wider than the 7px dot, so chips stay compact while still fitting the check.

@@ -1,7 +1,7 @@
 import { THEMES } from '../../puzzle/data/themes';
 import { createRng, hashString, normalizeSeed, randomSeed } from '../../puzzle/engine/random';
 import { normalizeWordList, resolveWordSource } from '../../puzzle/engine/wordBank';
-import { CHAIN_CONFIGS } from './config';
+import { CHAIN_CONFIGS, CHAIN_MAX_SAME_LENGTH } from './config';
 import { countTurns } from './grid';
 import { partitionGrid } from './partitionGrid';
 import { selectChainWords } from './selectChainWords';
@@ -30,12 +30,13 @@ export class ChainGenerationError extends Error {
 export function generateChainPuzzle(options: GenerateChainOptions): ChainPuzzle {
   const seed = options.seed === undefined ? randomSeed() : normalizeSeed(options.seed);
   const { difficulty } = options;
-  const config = CHAIN_CONFIGS[difficulty];
+  const config = { ...CHAIN_CONFIGS[difficulty], ...options.config };
   const source = resolveWordSource(options, THEMES);
   const avoid = normalizeWordList(options.avoidWords ?? []);
   const { rows, cols } = config;
 
-  const base = ['chain', source.themeId, difficulty, seed].join('-');
+  const size = options.config ? `-${rows}x${cols}` : '';
+  const base = ['chain', source.themeId, difficulty, seed].join('-') + size;
   const id = avoid.length > 0 ? `${base}-a${hashString(avoid.join(',')).toString(36)}` : base;
   const rng = createRng(id);
 
@@ -48,6 +49,7 @@ export function generateChainPuzzle(options: GenerateChainOptions): ChainPuzzle 
       length: config.wordLength,
       rng: attemptRng.fork('words'),
       avoid,
+      maxSameLength: CHAIN_MAX_SAME_LENGTH,
     });
     if (!words) continue;
 

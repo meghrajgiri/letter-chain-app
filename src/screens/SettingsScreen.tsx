@@ -1,4 +1,4 @@
-import { Platform, ScrollView, StyleSheet, Switch, View } from 'react-native';
+import { Platform, Pressable, ScrollView, StyleSheet, Switch, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AppText } from '@/components/ui/AppText';
@@ -23,7 +23,16 @@ const TIME_OPTIONS = TIMES.map((t) => ({ value: `${t.hour}:${t.minute}`, label: 
 
 function ToggleRow({ icon, label, detail, value, onChange }: { icon: IconName; label: string; detail: string; value: boolean; onChange: (v: boolean) => void }) {
   return (
-    <View style={styles.row}>
+    <Pressable
+      onPress={() => onChange(!value)}
+      accessibilityRole="switch"
+      accessibilityState={{ checked: value }}
+      aria-checked={value}
+      accessibilityLabel={label}
+      accessibilityHint={detail}
+      android_ripple={{ color: colors.primarySoft }}
+      style={({ pressed }) => [styles.row, pressed && styles.rowPressed]}
+    >
       <View style={styles.rowIcon}>
         <Icon name={icon} size={22} color={colors.primary} />
       </View>
@@ -38,9 +47,11 @@ function ToggleRow({ icon, label, detail, value, onChange }: { icon: IconName; l
         onValueChange={onChange}
         trackColor={{ true: colors.green, false: colors.border }}
         thumbColor={colors.surface}
-        accessibilityLabel={label}
+        // The whole row is the control for screen readers.
+        accessible={false}
+        importantForAccessibility="no-hide-descendants"
       />
-    </View>
+    </Pressable>
   );
 }
 
@@ -111,7 +122,7 @@ export function SettingsScreen() {
           )}
         </View>
 
-        <AppText variant="bodySm" color={colors.inkSubtle} style={styles.note}>
+        <AppText variant="bodySm" color={colors.inkMuted} style={styles.note}>
           Sound effects are coming in a later update.
         </AppText>
       </ScrollView>
@@ -124,7 +135,8 @@ const styles = StyleSheet.create({
   content: { padding: spacing.md, gap: spacing.sm },
   section: { marginTop: spacing.md, marginLeft: 4, letterSpacing: 0.8 },
   group: { backgroundColor: colors.surface, borderRadius: radius.xl, overflow: 'hidden', boxShadow: shadows.card },
-  row: { flexDirection: 'row', alignItems: 'center', gap: 14, padding: spacing.md },
+  row: { flexDirection: 'row', alignItems: 'center', gap: 14, padding: spacing.md, minHeight: 64 },
+  rowPressed: { backgroundColor: colors.surfaceLow },
   rowIcon: { width: 40, height: 40, borderRadius: 20, backgroundColor: colors.primarySoft, alignItems: 'center', justifyContent: 'center' },
   flex: { flex: 1 },
   times: { gap: 10, paddingHorizontal: spacing.md, paddingBottom: spacing.md },

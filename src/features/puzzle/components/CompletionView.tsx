@@ -4,16 +4,17 @@ import { Animated, Pressable, ScrollView, StyleSheet, View } from 'react-native'
 import { AppText } from '@/components/ui/AppText';
 import { Button } from '@/components/ui/Button';
 import { Icon, type IconName } from '@/components/ui/Icon';
-import { levelForXp, type CompletionSummary } from '@/features/progress';
+import { difficultyForLevel, levelForXp, type CompletionSummary, type GameMode } from '@/features/progress';
 import { colors, radius, shadows, spacing } from '@/theme/tokens';
+import { useReduceMotion } from '@/lib/useReduceMotion';
 import { formatElapsed } from '../hooks/usePuzzleTimer';
 
 type Props = {
   elapsedMs: number;
   wordCount: number;
   hintsUsed: number;
-  /** Totals after this game (for the level card). */
-  totalXp: number;
+  /** Mode of the finished game: the level card shows that mode's level. */
+  mode: GameMode;
   completion: CompletionSummary | null;
   isDaily: boolean;
   continueLabel: string;
@@ -58,7 +59,7 @@ export function CompletionView({
   elapsedMs,
   wordCount,
   hintsUsed,
-  totalXp,
+  mode,
   completion,
   isDaily,
   continueLabel,
@@ -67,19 +68,27 @@ export function CompletionView({
   onReview,
   promo,
 }: Props) {
+  const reduceMotion = useReduceMotion();
   const [appear] = useState(() => new Animated.Value(0));
   useEffect(() => {
-    Animated.spring(appear, { toValue: 1, useNativeDriver: true, friction: 6, tension: 70 }).start();
-  }, [appear]);
+    if (reduceMotion) appear.setValue(1);
+    else Animated.spring(appear, { toValue: 1, useNativeDriver: true, friction: 6, tension: 70 }).start();
+  }, [appear, reduceMotion]);
   const time = formatElapsed(elapsedMs);
   const streak = completion?.streak;
-  const level = levelForXp(totalXp);
+  const level = completion?.level ?? levelForXp(0);
   const leveledUp = completion ? completion.levelAfter > completion.levelBefore : false;
+  const modeName = mode === 'chain' ? 'Chain' : 'Classic';
+  const harderNow =
+    completion && leveledUp && difficultyForLevel(mode, completion.levelAfter) !== difficultyForLevel(mode, completion.levelBefore)
+      ? difficultyForLevel(mode, completion.levelAfter)
+      : null;
   const badge = completion?.newBadges[0];
   const tag = completion?.isPersonalBest ? 'Personal best' : hintsUsed === 0 ? 'Perfect' : 'Solved';
 
   return (
-    <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+    <View style={styles.flex1}>
+    <ScrollView style={styles.flex1} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
       <View style={styles.hero}>
         {CONFETTI.map((c, i) => (
           <View
@@ -183,7 +192,7 @@ export function CompletionView({
                     {done ? (
                       <Icon name="check" size={18} color={colors.surface} />
                     ) : future && i === streak.todayIndex + 1 ? (
-                      <AppText variant="labelBadge" color={colors.inkSubtle}>
+                      <AppText variant="labelBadge" color={colors.inkMuted}>
                         Next
                       </AppText>
                     ) : null}
@@ -200,7 +209,7 @@ export function CompletionView({
           <Icon name={badge ? (badge.icon as IconName) : leveledUp ? 'trending-up' : 'stars'} size={26} color={colors.primary} />
         </View>
         <View style={styles.flex}>
-          <AppText variant="headlineSm">{badge ? `New badge: ${badge.title}` : leveledUp ? `Level up! Level ${level.level}` : `Level ${level.level}`}</AppText>
+          <AppText variant="headlineSm">{badge ? `New badge: ${badge.title}` : leveledUp ? `Level up! ${modeName} level ${level.level}` : `${modeName} level ${level.level}`}</AppText>
           {badge ? (
             <AppText variant="bodySm" color={colors.inkMuted}>
               {badge.description}
@@ -213,22 +222,29 @@ export function CompletionView({
               <AppText variant="bodySm" color={colors.inkMuted}>
                 {level.xp - level.levelStartXp} / {level.nextLevelXp - level.levelStartXp} XP to level {level.level + 1}
               </AppText>
+              {harderNow && (
+                <AppText variant="labelMd" color={colors.primaryDark}>
+                  Next {modeName} puzzles are {harderNow[0].toUpperCase() + harderNow.slice(1)}
+                </AppText>
+              )}
             </View>
           )}
         </View>
       </View>
 
-      <View style={styles.actions}>
-        <Button label={continueLabel} icon="arrow-forward" iconPosition="right" size="lg" onPress={onContinue} />
-        <Button label="Share Result" icon="share" variant="secondary" size="lg" onPress={onShare} />
-        <Pressable onPress={onReview} accessibilityRole="button" style={styles.review} hitSlop={8}>
+      <Pressable onPress={onReview} accessibilityRole="button" style={({ pressed }) => [styles.review, pressed && { opacity: 0.5 }]} hitSlop={8}>
           <Icon name="visibility" size={20} color={colors.inkMuted} />
           <AppText variant="labelLg" color={colors.inkMuted}>
-            Review Puzzle Board
-          </AppText>
-        </Pressable>
-      </View>
+          Review Puzzle Board
+        </AppText>
+      </Pressable>
     </ScrollView>
+    {/* Primary actions stay on screen however long the results get. */}
+    <View style={styles.bar}>
+      <Button label="Share" icon="share" variant="secondary" size="lg" onPress={onShare} style={styles.barShare} />
+      <Button label={continueLabel} icon="arrow-forward" iconPosition="right" size="lg" onPress={onContinue} style={styles.barContinue} />
+    </View>
+    </View>
   );
 }
 
@@ -293,6 +309,18 @@ const styles = StyleSheet.create({
   levelBlock: { gap: 6, marginTop: 4 },
   track: { height: 8, borderRadius: 4, backgroundColor: colors.surface, overflow: 'hidden' },
   trackFill: { height: '100%', borderRadius: 4, backgroundColor: colors.primary },
-  actions: { gap: 12 },
+  flex1: { flex: 1 },
+  bar: {
+    flexDirection: 'row',
+    gap: 10,
+    paddingHorizontal: spacing.md,
+    paddingTop: 12,
+    paddingBottom: 8,
+    backgroundColor: colors.background,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+  },
+  barShare: { flex: 1 },
+  barContinue: { flex: 1.6 },
   review: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 8 },
 });

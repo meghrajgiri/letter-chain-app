@@ -15,13 +15,15 @@ type Options = {
   difficulty: ChainDifficulty;
   seed: number;
   avoidWords?: readonly string[];
+  /** A ready-made puzzle (the daily); skips generation. */
+  preset?: ChainPuzzle;
 };
 
 /** Game state for one Chain puzzle: generation, found words, hints, completion. */
-export function useChainPuzzle({ theme, difficulty, seed, avoidWords }: Options) {
+export function useChainPuzzle({ theme, difficulty, seed, avoidWords, preset }: Options) {
   const puzzle: ChainPuzzle = useMemo(
-    () => generateChainPuzzle({ theme, difficulty, seed, avoidWords }),
-    [theme, difficulty, seed, avoidWords],
+    () => preset ?? generateChainPuzzle({ theme, difficulty, seed, avoidWords }),
+    [preset, theme, difficulty, seed, avoidWords],
   );
   const [found, setFound] = useState<FoundChainWord[]>([]);
   const [hinted, setHinted] = useState<string[]>([]);
