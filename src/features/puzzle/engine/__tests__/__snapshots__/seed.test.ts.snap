@@ -1,0 +1,30 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`seeded generation is stable across runs (snapshot) 1`] = `
+{
+  "grid": [
+    "SURLAWMEPE",
+    "ESCAMELCLH",
+    "DRAPOELAAN",
+    "TANIEYETTS",
+    "ILOHGEEHYA",
+    "GPOLYEAOPL",
+    "EOCYHEEEUP",
+    "RRCCTYNESA",
+    "ORANGUTANC",
+    "EARLXNUAIA",
+  ],
+  "words": [
+    "ALPACA",
+    "CAMEL",
+    "CHEETAH",
+    "HYENA",
+    "LEOPARD",
+    "ORANGUTAN",
+    "PLATYPUS",
+    "RACCOON",
+    "TIGER",
+    "WALRUS",
+  ],
+}
+`;

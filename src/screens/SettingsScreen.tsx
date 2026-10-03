@@ -1,0 +1,132 @@
+import { Platform, ScrollView, StyleSheet, Switch, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+
+import { AppText } from '@/components/ui/AppText';
+import { ChipGroup } from '@/components/ui/ChipGroup';
+import { Icon, type IconName } from '@/components/ui/Icon';
+import { useToast } from '@/components/ui/Toast';
+import { haptic } from '@/features/feedback/haptics';
+import { useProgress } from '@/features/progress/ProgressProvider';
+import { requestReminderPermission } from '@/features/reminders/reminders';
+import { formatReminderTime } from '@/features/reminders/schedule';
+import { colors, radius, shadows, spacing } from '@/theme/tokens';
+
+const TIMES = [
+  { hour: 8, minute: 0 },
+  { hour: 12, minute: 0 },
+  { hour: 18, minute: 0 },
+  { hour: 19, minute: 0 },
+  { hour: 21, minute: 0 },
+] as const;
+
+const TIME_OPTIONS = TIMES.map((t) => ({ value: `${t.hour}:${t.minute}`, label: formatReminderTime(t.hour, t.minute) }));
+
+function ToggleRow({ icon, label, detail, value, onChange }: { icon: IconName; label: string; detail: string; value: boolean; onChange: (v: boolean) => void }) {
+  return (
+    <View style={styles.row}>
+      <View style={styles.rowIcon}>
+        <Icon name={icon} size={22} color={colors.primary} />
+      </View>
+      <View style={styles.flex}>
+        <AppText variant="labelLg">{label}</AppText>
+        <AppText variant="bodySm" color={colors.inkMuted}>
+          {detail}
+        </AppText>
+      </View>
+      <Switch
+        value={value}
+        onValueChange={onChange}
+        trackColor={{ true: colors.green, false: colors.border }}
+        thumbColor={colors.surface}
+        accessibilityLabel={label}
+      />
+    </View>
+  );
+}
+
+export function SettingsScreen() {
+  const toast = useToast();
+  const { settings, updateSettings } = useProgress();
+  const remindersSupported = Platform.OS !== 'web';
+
+  const toggleReminder = async (on: boolean) => {
+    if (!on) {
+      updateSettings({ reminderEnabled: false });
+      return;
+    }
+    const granted = await requestReminderPermission();
+    if (!granted) {
+      toast.show('Allow notifications in system settings to get reminders');
+      return;
+    }
+    updateSettings({ reminderEnabled: true });
+    toast.show(`Reminder set for ${formatReminderTime(settings.reminderHour, settings.reminderMinute)}`);
+  };
+
+  return (
+    <SafeAreaView style={styles.safe} edges={['bottom', 'left', 'right']}>
+      <ScrollView contentContainerStyle={styles.content}>
+        <AppText variant="labelMd" color={colors.inkMuted} style={styles.section}>
+          GAMEPLAY
+        </AppText>
+        <View style={styles.group}>
+          <ToggleRow
+            icon="vibration"
+            label="Haptics"
+            detail="Vibrate when you find a word"
+            value={settings.haptics}
+            onChange={(v) => {
+              updateSettings({ haptics: v });
+              if (v) haptic('found');
+            }}
+          />
+        </View>
+
+        <AppText variant="labelMd" color={colors.inkMuted} style={styles.section}>
+          DAILY REMINDER
+        </AppText>
+        <View style={styles.group}>
+          <ToggleRow
+            icon="notifications-none"
+            label="Remind me to play"
+            detail={remindersSupported ? 'Skipped on days you’ve already played' : 'Available in the mobile app'}
+            value={settings.reminderEnabled}
+            onChange={remindersSupported ? toggleReminder : () => toast.show('Reminders are available in the mobile app')}
+          />
+          {settings.reminderEnabled && (
+            <View style={styles.times}>
+              <AppText variant="bodySm" color={colors.inkMuted}>
+                Reminder time
+              </AppText>
+              <ChipGroup
+                options={TIME_OPTIONS}
+                value={`${settings.reminderHour}:${settings.reminderMinute}`}
+                onChange={(v) => {
+                  const [hour, minute] = v.split(':').map(Number);
+                  updateSettings({ reminderHour: hour, reminderMinute: minute });
+                }}
+                accessibilityLabel="Reminder time"
+              />
+            </View>
+          )}
+        </View>
+
+        <AppText variant="bodySm" color={colors.inkSubtle} style={styles.note}>
+          Sound effects are coming in a later update.
+        </AppText>
+      </ScrollView>
+    </SafeAreaView>
+  );
+}
+
+const styles = StyleSheet.create({
+  safe: { flex: 1, backgroundColor: colors.background },
+  content: { padding: spacing.md, gap: spacing.sm },
+  section: { marginTop: spacing.md, marginLeft: 4, letterSpacing: 0.8 },
+  group: { backgroundColor: colors.surface, borderRadius: radius.xl, overflow: 'hidden', boxShadow: shadows.card },
+  row: { flexDirection: 'row', alignItems: 'center', gap: 14, padding: spacing.md },
+  rowIcon: { width: 40, height: 40, borderRadius: 20, backgroundColor: colors.primarySoft, alignItems: 'center', justifyContent: 'center' },
+  flex: { flex: 1 },
+  times: { gap: 10, paddingHorizontal: spacing.md, paddingBottom: spacing.md },
+  note: { marginTop: spacing.md, textAlign: 'center' },
+});

@@ -1,0 +1,177 @@
+import Constants from 'expo-constants';
+import { randomUUID } from 'expo-crypto';
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { AppState } from 'react-native';
+
+import { setHapticsEnabled } from '../feedback/haptics';
+import { THEMES } from '../puzzle/data/themes';
+import { DEFAULT_HISTORY_SIZE, wordHistory } from '../puzzle/game/wordHistory';
+import { DEFAULT_SETTINGS, parseSettings, SETTINGS_KEY, type AppSettings } from '../settings/settings';
+import { localDateKey } from './dates';
+import { computeProgress, summarizeCompletion, type CompletionSummary, type ProgressSummary } from './summary';
+import { openProgressStore } from './storage/store';
+import type { ProgressStore } from './storage/types';
+import type { GameResult, NewGameResult } from './types';
+
+type ProgressApi = {
+  /** False until saved progress has been loaded from the device. */
+  ready: boolean;
+  results: readonly GameResult[];
+  summary: ProgressSummary;
+  todayKey: string;
+  /** Saves a finished game and returns it with what the completion screen shows. */
+  recordGame: (game: NewGameResult) => { result: GameResult; completion: CompletionSummary };
+  settings: AppSettings;
+  updateSettings: (patch: Partial<AppSettings>) => void;
+  /** Sync hooks (used by AccountProvider). */
+  sync: {
+    pending: () => GameResult[];
+    apply: (outcome: { uploadedIds: readonly string[]; downloaded: readonly GameResult[]; syncedAt: string }) => Promise<void>;
+    clearSynced: () => Promise<void>;
+    clearAll: () => Promise<void>;
+    readValue: (key: string) => Promise<string | null>;
+    writeValue: (key: string, value: string) => Promise<void>;
+  };
+};
+
+const ProgressContext = createContext<ProgressApi | null>(null);
+
+export function useProgress(): ProgressApi {
+  const api = useContext(ProgressContext);
+  if (!api) throw new Error('useProgress must be used inside <ProgressProvider>');
+  return api;
+}
+
+/** Local date key that refreshes when the app returns to the foreground (e.g. after midnight). */
+function useTodayKey(): string {
+  const [key, setKey] = useState(() => localDateKey(new Date()));
+  useEffect(() => {
+    const sub = AppState.addEventListener('change', (state) => {
+      if (state === 'active') setKey(localDateKey(new Date()));
+    });
+    const timer = setInterval(() => setKey(localDateKey(new Date())), 60_000);
+    return () => {
+      sub.remove();
+      clearInterval(timer);
+    };
+  }, []);
+  return key;
+}
+
+/**
+ * Loads the player's finished games from device storage and derives all
+ * progress from them (see docs/progression-and-sync.md). Also restores and
+ * persists the recent-word history used to avoid repeats.
+ */
+export function ProgressProvider({ children }: { children: ReactNode }) {
+  const [results, setResults] = useState<GameResult[]>([]);
+  const [ready, setReady] = useState(false);
+  const [settings, setSettings] = useState<AppSettings>(DEFAULT_SETTINGS);
+  const settingsRef = useRef<AppSettings>(DEFAULT_SETTINGS);
+  const store = useRef<ProgressStore | null>(null);
+  const resultsRef = useRef<GameResult[]>([]);
+  const todayKey = useTodayKey();
+
+  useEffect(() => {
+    let cancelled = false;
+    let unsubscribe: (() => void) | undefined;
+    (async () => {
+      try {
+        const s = await openProgressStore();
+        const [saved, history, rawSettings] = await Promise.all([s.loadResults(), s.loadWordHistory(), s.getSetting(SETTINGS_KEY)]);
+        if (cancelled) return;
+        const loadedSettings = parseSettings(rawSettings);
+        settingsRef.current = loadedSettings;
+        setSettings(loadedSettings);
+        setHapticsEnabled(loadedSettings.haptics);
+        // Restore recent words before listening, so restoring isn't saved again.
+        for (const entry of history) wordHistory.record(entry.theme, entry.puzzleId, entry.words);
+        unsubscribe = wordHistory.subscribe((theme, puzzleId, words) => {
+          s.addWordHistory({ theme, puzzleId, words: [...words], playedAt: new Date().toISOString() }, DEFAULT_HISTORY_SIZE).catch(() => {});
+        });
+        store.current = s;
+        resultsRef.current = saved;
+        setResults(saved);
+      } catch (error) {
+        // Storage unavailable: play still works, progress lives in memory for this session.
+        console.warn('Progress storage unavailable', error);
+      } finally {
+        if (!cancelled) setReady(true);
+      }
+    })();
+    return () => {
+      cancelled = true;
+      unsubscribe?.();
+    };
+  }, []);
+
+  const recordGame = useCallback((game: NewGameResult) => {
+    const now = new Date();
+    const result: GameResult = {
+      ...game,
+      id: randomUUID(),
+      completedAt: now.toISOString(),
+      localDate: localDateKey(now),
+      appVersion: game.appVersion ?? Constants.expoConfig?.version ?? null,
+      syncedAt: null,
+    };
+    const next = [...resultsRef.current, result];
+    resultsRef.current = next;
+    setResults(next);
+    store.current?.addResult(result).catch((error) => console.warn('Could not save result', error));
+    return { result, completion: summarizeCompletion(result, next, localDateKey(now), THEMES.length) };
+  }, []);
+
+  const updateSettings = useCallback((patch: Partial<AppSettings>) => {
+    const next = { ...settingsRef.current, ...patch };
+    settingsRef.current = next;
+    setSettings(next);
+    setHapticsEnabled(next.haptics);
+    store.current?.setSetting(SETTINGS_KEY, JSON.stringify(next)).catch((error) => console.warn('Could not save settings', error));
+  }, []);
+
+  const sync = useMemo<ProgressApi['sync']>(
+    () => ({
+      pending: () => resultsRef.current.filter((r) => !r.syncedAt),
+      async apply({ uploadedIds, downloaded, syncedAt }) {
+        const uploaded = new Set(uploadedIds);
+        const known = new Set(resultsRef.current.map((r) => r.id));
+        const fresh = downloaded.filter((r) => !known.has(r.id));
+        const next = [
+          ...resultsRef.current.map((r) => (uploaded.has(r.id) ? { ...r, syncedAt } : r)),
+          ...fresh,
+        ].sort((a, b) => a.completedAt.localeCompare(b.completedAt));
+        resultsRef.current = next;
+        setResults(next);
+        const s = store.current;
+        if (!s) return;
+        await s.markSynced(uploadedIds, syncedAt);
+        for (const r of fresh) await s.addResult(r);
+      },
+      async clearSynced() {
+        const next = resultsRef.current.filter((r) => !r.syncedAt);
+        resultsRef.current = next;
+        setResults(next);
+        await store.current?.deleteSyncedResults();
+      },
+      async clearAll() {
+        resultsRef.current = [];
+        setResults([]);
+        await store.current?.deleteAllResults();
+      },
+      readValue: async (key) => (await store.current?.getSetting(key)) ?? null,
+      writeValue: async (key, value) => {
+        await store.current?.setSetting(key, value);
+      },
+    }),
+    [],
+  );
+
+  const summary = useMemo(() => computeProgress(results, todayKey, THEMES.length), [results, todayKey]);
+  const api = useMemo<ProgressApi>(
+    () => ({ ready, results, summary, todayKey, recordGame, settings, updateSettings, sync }),
+    [ready, results, summary, todayKey, recordGame, settings, updateSettings, sync],
+  );
+
+  return <ProgressContext.Provider value={api}>{children}</ProgressContext.Provider>;
+}
