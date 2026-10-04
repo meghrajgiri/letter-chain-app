@@ -2633,6 +2633,185 @@ var THEMES = [
   }
 ];
 
+// src/features/puzzle/engine/directions.ts
+var DIRECTION_VECTORS = {
+  E: { row: 0, col: 1 },
+  W: { row: 0, col: -1 },
+  S: { row: 1, col: 0 },
+  N: { row: -1, col: 0 },
+  SE: { row: 1, col: 1 },
+  NW: { row: -1, col: -1 },
+  NE: { row: -1, col: 1 },
+  SW: { row: 1, col: -1 }
+};
+var DIRECTION_NAMES = Object.keys(DIRECTION_VECTORS);
+var DIRECTIONS = DIRECTION_NAMES.map((name) => DIRECTION_VECTORS[name]);
+function getDirectionName(direction) {
+  const name = DIRECTION_NAMES.find(
+    (n) => DIRECTION_VECTORS[n].row === direction.row && DIRECTION_VECTORS[n].col === direction.col
+  );
+  if (!name) throw new Error(`Invalid direction ${direction.row},${direction.col}`);
+  return name;
+}
+function isValidDirection(direction) {
+  return Number.isInteger(direction.row) && Number.isInteger(direction.col) && Math.abs(direction.row) <= 1 && Math.abs(direction.col) <= 1 && !(direction.row === 0 && direction.col === 0);
+}
+function getDirectionCategory(direction) {
+  if (direction.row === 0) return "horizontal";
+  if (direction.col === 0) return "vertical";
+  return "diagonal";
+}
+function isReverseDirection(direction) {
+  return direction.col < 0 || direction.col === 0 && direction.row < 0;
+}
+function isInsideGrid(cell, gridSize) {
+  return cell.row >= 0 && cell.col >= 0 && cell.row < gridSize && cell.col < gridSize;
+}
+
+// src/features/puzzle/engine/gridScan.ts
+function cellKey(cell) {
+  return `${cell.row},${cell.col}`;
+}
+function cellSetKey(cells) {
+  return cells.map(cellKey).sort().join("|");
+}
+function findWordOccurrences(grid, word) {
+  const size = grid.length;
+  const found = /* @__PURE__ */ new Map();
+  if (word.length === 0) return [];
+  for (let row = 0; row < size; row++) {
+    for (let col = 0; col < size; col++) {
+      if (grid[row][col] !== word[0]) continue;
+      for (const dir of DIRECTIONS) {
+        const endRow = row + dir.row * (word.length - 1);
+        const endCol = col + dir.col * (word.length - 1);
+        if (endRow < 0 || endCol < 0 || endRow >= size || endCol >= size) continue;
+        let match = true;
+        for (let i = 1; i < word.length; i++) {
+          if (grid[row + dir.row * i][col + dir.col * i] !== word[i]) {
+            match = false;
+            break;
+          }
+        }
+        if (!match) continue;
+        const cells = [];
+        for (let i = 0; i < word.length; i++) cells.push({ row: row + dir.row * i, col: col + dir.col * i });
+        const key = cellSetKey(cells);
+        if (!found.has(key)) found.set(key, cells);
+      }
+    }
+  }
+  return [...found.values()];
+}
+
+// src/features/puzzle/engine/blockedWords.ts
+var ENCODED = [
+  "NFF",
+  "PHZ",
+  "SNT",
+  "SHX",
+  "WVM",
+  "XXX",
+  "FRK",
+  "GVG",
+  "NANY",
+  "NEFR",
+  "OBBO",
+  "PBPX",
+  "PBBA",
+  "PENC",
+  "PHAG",
+  "QNZA",
+  "QVPX",
+  "QLXR",
+  "SHPX",
+  "TBBX",
+  "UBZB",
+  "WVMM",
+  "XVXR",
+  "ANMV",
+  "AHQR",
+  "BETL",
+  "CNXV",
+  "CRQB",
+  "CVFF",
+  "CBEA",
+  "ENCR",
+  "FUVG",
+  "FYHG",
+  "FZHG",
+  "FCVP",
+  "GVGF",
+  "GJNG",
+  "JNAX",
+  "OVGPU",
+  "OBARE",
+  "PUVAX",
+  "QVYQB",
+  "UBEAL",
+  "ARTEB",
+  "AVTTN",
+  "AHQRF",
+  "CRAVF",
+  "CEVPX",
+  "CHFFL",
+  "FRZRA",
+  "FXNAX",
+  "FCREZ",
+  "IHYIN",
+  "JUBER",
+  "SNTTBG",
+  "SHPXRE",
+  "UVGYRE",
+  "UBBXRE",
+  "VAPRFG",
+  "AVTTRE",
+  "BETNFZ",
+  "ERGNEQ",
+  "FUVGGL",
+  "GENAAL",
+  "JNAXRE",
+  "JUBERF",
+  "NFFUBYR",
+  "ONFGNEQ",
+  "OVGPURF",
+  "OBYYBPX",
+  "SHPXVAT",
+  "NEFRUBYR",
+  "FUVGURNQ"
+];
+var rot13 = (s) => s.replace(/[A-Z]/g, (c) => String.fromCharCode((c.charCodeAt(0) - 65 + 13) % 26 + 65));
+var BLOCKED_WORDS = ENCODED.map(rot13);
+var BLOCKED = new Set(BLOCKED_WORDS);
+var MAX_LENGTH = Math.max(...BLOCKED_WORDS.map((w) => w.length));
+function findBlockedWords(grid, allowed = []) {
+  const rows = grid.length;
+  const cols = grid[0]?.length ?? 0;
+  const allowedSets = allowed.map((cells) => new Set(cells.map(cellKey)));
+  const found = [];
+  for (let row = 0; row < rows; row++) {
+    for (let col = 0; col < cols; col++) {
+      for (const d of DIRECTIONS) {
+        let text = "";
+        const cells = [];
+        for (let k = 0; k < MAX_LENGTH; k++) {
+          const r = row + d.row * k;
+          const c = col + d.col * k;
+          const letter = r >= 0 && c >= 0 && r < rows && c < cols ? grid[r][c] : null;
+          if (!letter) break;
+          text += letter;
+          cells.push({ row: r, col: c });
+          if (text.length >= 3 && BLOCKED.has(text)) {
+            const keys = cells.map(cellKey);
+            if (!allowedSets.some((set) => keys.every((key) => set.has(key)))) found.push(cells.slice());
+          }
+        }
+      }
+    }
+  }
+  return found;
+}
+
 // src/features/puzzle/engine/random.ts
 function hashString(value) {
   let hash = 2166136261;
@@ -3071,77 +3250,6 @@ function selectChainWords(input) {
   return null;
 }
 
-// src/features/puzzle/engine/directions.ts
-var DIRECTION_VECTORS = {
-  E: { row: 0, col: 1 },
-  W: { row: 0, col: -1 },
-  S: { row: 1, col: 0 },
-  N: { row: -1, col: 0 },
-  SE: { row: 1, col: 1 },
-  NW: { row: -1, col: -1 },
-  NE: { row: -1, col: 1 },
-  SW: { row: 1, col: -1 }
-};
-var DIRECTION_NAMES = Object.keys(DIRECTION_VECTORS);
-var DIRECTIONS = DIRECTION_NAMES.map((name) => DIRECTION_VECTORS[name]);
-function getDirectionName(direction) {
-  const name = DIRECTION_NAMES.find(
-    (n) => DIRECTION_VECTORS[n].row === direction.row && DIRECTION_VECTORS[n].col === direction.col
-  );
-  if (!name) throw new Error(`Invalid direction ${direction.row},${direction.col}`);
-  return name;
-}
-function isValidDirection(direction) {
-  return Number.isInteger(direction.row) && Number.isInteger(direction.col) && Math.abs(direction.row) <= 1 && Math.abs(direction.col) <= 1 && !(direction.row === 0 && direction.col === 0);
-}
-function getDirectionCategory(direction) {
-  if (direction.row === 0) return "horizontal";
-  if (direction.col === 0) return "vertical";
-  return "diagonal";
-}
-function isReverseDirection(direction) {
-  return direction.col < 0 || direction.col === 0 && direction.row < 0;
-}
-function isInsideGrid(cell, gridSize) {
-  return cell.row >= 0 && cell.col >= 0 && cell.row < gridSize && cell.col < gridSize;
-}
-
-// src/features/puzzle/engine/gridScan.ts
-function cellKey(cell) {
-  return `${cell.row},${cell.col}`;
-}
-function cellSetKey(cells) {
-  return cells.map(cellKey).sort().join("|");
-}
-function findWordOccurrences(grid, word) {
-  const size = grid.length;
-  const found = /* @__PURE__ */ new Map();
-  if (word.length === 0) return [];
-  for (let row = 0; row < size; row++) {
-    for (let col = 0; col < size; col++) {
-      if (grid[row][col] !== word[0]) continue;
-      for (const dir of DIRECTIONS) {
-        const endRow = row + dir.row * (word.length - 1);
-        const endCol = col + dir.col * (word.length - 1);
-        if (endRow < 0 || endCol < 0 || endRow >= size || endCol >= size) continue;
-        let match = true;
-        for (let i = 1; i < word.length; i++) {
-          if (grid[row + dir.row * i][col + dir.col * i] !== word[i]) {
-            match = false;
-            break;
-          }
-        }
-        if (!match) continue;
-        const cells = [];
-        for (let i = 0; i < word.length; i++) cells.push({ row: row + dir.row * i, col: col + dir.col * i });
-        const key = cellSetKey(cells);
-        if (!found.has(key)) found.set(key, cells);
-      }
-    }
-  }
-  return [...found.values()];
-}
-
 // src/features/chain/engine/solver.ts
 function findTracings(grid, word) {
   const rows = grid.length;
@@ -3261,6 +3369,7 @@ function generateChainPuzzle(options) {
       });
       placements.push({ word, cells });
     }
+    if (findBlockedWords(grid, placements.map((p) => p.cells)).length > 0) continue;
     if (solveChain(grid, words, 2).count !== 1) continue;
     placements.sort((a, b) => a.word.length - b.word.length || a.word.localeCompare(b.word));
     return {
@@ -3572,20 +3681,29 @@ function fillGrid(input) {
     }
   }
   const intended = new Map(placements.map((p) => [p.word, cellSetKey(p.cells)]));
+  const wordCells = placements.map((p) => p.cells);
+  const reroll = (occurrence) => {
+    const fixable = occurrence.filter((cell2) => filler.has(cellKey(cell2)));
+    if (fixable.length === 0) return false;
+    const cell = rng.pick(fixable);
+    const current = grid[cell.row][cell.col];
+    let next = current;
+    while (next === current) next = ENGLISH_LETTERS[rng.weightedIndex(ENGLISH_WEIGHTS)];
+    grid[cell.row][cell.col] = next;
+    return true;
+  };
   for (let pass = 0; pass < MAX_REPAIR_PASSES; pass++) {
     let clean = true;
     for (const placement of placements) {
       for (const occurrence of findWordOccurrences(grid, placement.word)) {
         if (cellSetKey(occurrence) === intended.get(placement.word)) continue;
         clean = false;
-        const fixable = occurrence.filter((cell2) => filler.has(cellKey(cell2)));
-        if (fixable.length === 0) return null;
-        const cell = rng.pick(fixable);
-        const current = grid[cell.row][cell.col];
-        let next = current;
-        while (next === current) next = ENGLISH_LETTERS[rng.weightedIndex(ENGLISH_WEIGHTS)];
-        grid[cell.row][cell.col] = next;
+        if (!reroll(occurrence)) return null;
       }
+    }
+    for (const occurrence of findBlockedWords(grid, wordCells)) {
+      clean = false;
+      if (!reroll(occurrence)) return null;
     }
     if (clean) return { grid, decoys };
   }
@@ -3866,6 +3984,7 @@ function validatePuzzle(puzzle) {
       }
     }
   }
+  if (findBlockedWords(grid, placements.map((p) => p.cells)).length > 0) errors.push("Grid spells a blocked word");
   return { valid: errors.length === 0, errors, warnings };
 }
 

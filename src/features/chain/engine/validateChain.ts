@@ -1,3 +1,4 @@
+import { findBlockedWords } from '../../puzzle/engine/blockedWords';
 import { cellKey } from '../../puzzle/engine/gridScan';
 import { isAdjacent } from './grid';
 import { solveChain } from './solver';
@@ -27,5 +28,6 @@ export function validateChainPuzzle(p: Pick<ChainPuzzle, 'rows' | 'cols' | 'grid
     const solutions = solveChain(p.grid, p.words, 2).count;
     if (solutions !== 1) errors.push(`Puzzle has ${solutions} solutions (expected exactly 1)`);
   }
+  if (findBlockedWords(p.grid, p.placements.map((pl) => pl.cells)).length > 0) errors.push('Grid spells a blocked word');
   return { valid: errors.length === 0, errors };
 }

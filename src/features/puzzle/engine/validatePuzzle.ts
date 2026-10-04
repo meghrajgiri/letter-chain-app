@@ -1,3 +1,4 @@
+import { findBlockedWords } from './blockedWords';
 import { MIN_WORD_LENGTH } from './difficultyConfig';
 import { isInsideGrid, isValidDirection } from './directions';
 import { cellSetKey, findWordOccurrences } from './gridScan';
@@ -102,6 +103,8 @@ export function validatePuzzle(puzzle: ValidatablePuzzle): ValidationResult {
       }
     }
   }
+
+  if (findBlockedWords(grid, placements.map((p) => p.cells)).length > 0) errors.push('Grid spells a blocked word');
 
   return { valid: errors.length === 0, errors, warnings };
 }

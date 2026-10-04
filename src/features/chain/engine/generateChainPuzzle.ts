@@ -1,4 +1,5 @@
 import { THEMES } from '../../puzzle/data/themes';
+import { findBlockedWords } from '../../puzzle/engine/blockedWords';
 import { createRng, hashString, normalizeSeed, randomSeed } from '../../puzzle/engine/random';
 import { normalizeWordList, resolveWordSource } from '../../puzzle/engine/wordBank';
 import { CHAIN_CONFIGS, CHAIN_MAX_SAME_LENGTH } from './config';
@@ -71,6 +72,8 @@ export function generateChainPuzzle(options: GenerateChainOptions): ChainPuzzle 
       placements.push({ word, cells });
     }
 
+    // Chain grids have no filler to re-roll, so a layout that spells a rude word in a line is dropped.
+    if (findBlockedWords(grid, placements.map((p) => p.cells)).length > 0) continue;
     if (solveChain(grid, words, 2).count !== 1) continue;
 
     placements.sort((a, b) => a.word.length - b.word.length || a.word.localeCompare(b.word));

@@ -36,7 +36,9 @@ function storage(): Storage | null {
 function accept(row: unknown): boolean {
   const daily = parseDailyRow(row);
   if (!daily) return false;
-  const changed = dailies.get(daily.date)?.puzzle.id !== daily.puzzle.id;
+  // Compare the grid, not just the id: a corrected re-publish keeps the same id.
+  const previous = dailies.get(daily.date);
+  const changed = !previous || previous.puzzle.id !== daily.puzzle.id || JSON.stringify(previous.puzzle.grid) !== JSON.stringify(daily.puzzle.grid);
   rows.set(daily.date, row);
   dailies.set(daily.date, daily);
   return changed;

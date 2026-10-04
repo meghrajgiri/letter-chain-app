@@ -1,3 +1,4 @@
+import { findBlockedWords } from './blockedWords';
 import { DIRECTIONS } from './directions';
 import { cellKey, cellSetKey, findWordOccurrences } from './gridScan';
 import { canPlaceWord } from './placeWords';
@@ -35,10 +36,11 @@ const MAX_REPAIR_PASSES = 40;
  * 1. Plants decoy fragments (a word's first few letters, going nowhere).
  * 2. Fills the rest with letters drawn from English frequency, blended with
  *    the puzzle's own letters by `fillerWordLetterBias` so words don't pop out.
- * 3. Re-rolls filler cells that accidentally spell a second copy of a word.
+ * 3. Re-rolls filler cells that accidentally spell a second copy of a word,
+ *    or a blocked (rude) word.
  *
- * Returns `null` when a duplicate is made only of placed letters (the caller
- * should retry with a different layout).
+ * Returns `null` when a duplicate or blocked word is made only of placed
+ * letters (the caller should retry with a different layout).
  */
 export function fillGrid(input: FillGridInput): FillGridResult | null {
   const { placements, config, rng } = input;
@@ -97,22 +99,31 @@ export function fillGrid(input: FillGridInput): FillGridResult | null {
     }
   }
 
-  // 3. Remove accidental duplicates.
+  // 3. Remove accidental duplicates and blocked words by re-rolling a filler letter.
   const intended = new Map(placements.map((p) => [p.word, cellSetKey(p.cells)]));
+  const wordCells = placements.map((p) => p.cells);
+  const reroll = (occurrence: readonly Cell[]): boolean => {
+    const fixable = occurrence.filter((cell) => filler.has(cellKey(cell)));
+    if (fixable.length === 0) return false;
+    const cell = rng.pick(fixable);
+    const current = grid[cell.row][cell.col];
+    let next = current;
+    while (next === current) next = ENGLISH_LETTERS[rng.weightedIndex(ENGLISH_WEIGHTS)];
+    grid[cell.row][cell.col] = next;
+    return true;
+  };
   for (let pass = 0; pass < MAX_REPAIR_PASSES; pass++) {
     let clean = true;
     for (const placement of placements) {
       for (const occurrence of findWordOccurrences(grid, placement.word)) {
         if (cellSetKey(occurrence) === intended.get(placement.word)) continue;
         clean = false;
-        const fixable = occurrence.filter((cell) => filler.has(cellKey(cell)));
-        if (fixable.length === 0) return null;
-        const cell = rng.pick(fixable);
-        const current = grid[cell.row][cell.col];
-        let next = current;
-        while (next === current) next = ENGLISH_LETTERS[rng.weightedIndex(ENGLISH_WEIGHTS)];
-        grid[cell.row][cell.col] = next;
+        if (!reroll(occurrence)) return null;
       }
+    }
+    for (const occurrence of findBlockedWords(grid, wordCells)) {
+      clean = false;
+      if (!reroll(occurrence)) return null;
     }
     if (clean) return { grid: grid as Grid, decoys };
   }
