@@ -15,3 +15,9 @@ export function playStoreUrl(packageName: string): string {
 
 /** Link included in shared results. */
 export const SHARE_URL = playStoreUrl(ANDROID_PACKAGE);
+
+/** Public website (site/ in this repo, hosted on Vercel). */
+export const WEBSITE_URL = 'https://letterchain.meghrajgiri.com';
+export const PRIVACY_URL = `${WEBSITE_URL}/privacy`;
+export const DELETE_ACCOUNT_URL = `${WEBSITE_URL}/delete-account`;
+export const SUPPORT_EMAIL = 'meghrajgiri56@gmail.com';
