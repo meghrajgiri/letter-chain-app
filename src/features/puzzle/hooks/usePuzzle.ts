@@ -37,6 +37,8 @@ export function usePuzzle({ theme, difficulty, seed, gridSize, wordCount, avoidW
   const [found, setFound] = useState<FoundWord[]>([]);
   const [hinted, setHinted] = useState<string[]>([]);
   const [hintsUsed, setHintsUsed] = useState(0);
+  /** Extra hints earned by watching rewarded ads. */
+  const [adHints, setAdHints] = useState(0);
   const [puzzleId, setPuzzleId] = useState(puzzle.id);
 
   // Reset progress when the puzzle changes (state-during-render pattern).
@@ -45,6 +47,7 @@ export function usePuzzle({ theme, difficulty, seed, gridSize, wordCount, avoidW
     setFound([]);
     setHinted([]);
     setHintsUsed(0);
+    setAdHints(0);
   }
 
   const foundWords = useMemo(() => new Set(found.map((f) => f.word)), [found]);
@@ -64,7 +67,10 @@ export function usePuzzle({ theme, difficulty, seed, gridSize, wordCount, avoidW
     [puzzle, foundWords],
   );
 
-  const hintsLeft = CLASSIC_HINTS - hintsUsed;
+  const hintsLeft = CLASSIC_HINTS + adHints - hintsUsed;
+
+  /** One more hint, earned by watching a rewarded ad. */
+  const addAdHint = useCallback(() => setAdHints((n) => n + 1), []);
 
   /** Rings the first letter of an unfound word. Returns the word, or null if no hint is available. */
   const revealHint = useCallback((): string | null => {
@@ -106,6 +112,8 @@ export function usePuzzle({ theme, difficulty, seed, gridSize, wordCount, avoidW
     hintCells,
     hintsUsed,
     hintsLeft,
+    adHints,
+    addAdHint,
     submitSelection,
     revealHint,
     revealWord,

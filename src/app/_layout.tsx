@@ -12,6 +12,7 @@ import { useEffect } from 'react';
 
 import { ToastProvider } from '@/components/ui/Toast';
 import { AccountProvider } from '@/features/account/AccountProvider';
+import { AdsProvider } from '@/features/ads/AdsProvider';
 import { DailySync } from '@/features/daily/DailySync';
 import { ProgressProvider, useProgress } from '@/features/progress/ProgressProvider';
 import { ReminderSync } from '@/features/reminders/ReminderSync';
@@ -46,26 +47,29 @@ function AppShell() {
 
   return (
     <AccountProvider>
-      <ToastProvider>
-        <ReminderSync />
-        <DailySync />
-        <StatusBar style="dark" />
-        <Stack
-          screenOptions={{
-            headerStyle: { backgroundColor: colors.background },
-            headerShadowVisible: false,
-            headerTintColor: colors.primary,
-            headerTitleStyle: { color: colors.ink, fontFamily: fonts.bold },
-            contentStyle: { backgroundColor: colors.background },
-          }}
-        >
-          <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-          <Stack.Screen name="puzzle" options={{ headerShown: false, gestureEnabled: false }} />
-          <Stack.Screen name="chain" options={{ headerShown: false, gestureEnabled: false }} />
-          <Stack.Screen name="studio" options={{ title: 'Puzzle Studio' }} />
-          <Stack.Screen name="settings" options={{ title: 'Settings' }} />
-        </Stack>
-      </ToastProvider>
+      {/* Asks for ad consent where required (EU/UK) once the app is on screen, then starts AdMob. */}
+      <AdsProvider>
+        <ToastProvider>
+          <ReminderSync />
+          <DailySync />
+          <StatusBar style="dark" />
+          <Stack
+            screenOptions={{
+              headerStyle: { backgroundColor: colors.background },
+              headerShadowVisible: false,
+              headerTintColor: colors.primary,
+              headerTitleStyle: { color: colors.ink, fontFamily: fonts.bold },
+              contentStyle: { backgroundColor: colors.background },
+            }}
+          >
+            <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+            <Stack.Screen name="puzzle" options={{ headerShown: false, gestureEnabled: false }} />
+            <Stack.Screen name="chain" options={{ headerShown: false, gestureEnabled: false }} />
+            <Stack.Screen name="studio" options={{ title: 'Puzzle Studio' }} />
+            <Stack.Screen name="settings" options={{ title: 'Settings' }} />
+          </Stack>
+        </ToastProvider>
+      </AdsProvider>
     </AccountProvider>
   );
 }

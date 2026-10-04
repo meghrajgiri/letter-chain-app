@@ -32,6 +32,10 @@ import { usePuzzleSelection, type Selection } from '@/features/puzzle/hooks/useP
 import { usePuzzleTimer } from '@/features/puzzle/hooks/usePuzzleTimer';
 import { announceFeedback, useScreenReader } from '@/lib/useScreenReader';
 import { startAutoGame } from '@/features/play/autoPlay';
+import { canOfferAdHint } from '@/features/ads/adPolicy';
+import { useAds } from '@/features/ads/AdsProvider';
+import { useInterstitialBreak } from '@/features/ads/useInterstitialBreak';
+import { useRewardedHint } from '@/features/ads/useRewardedHint';
 import { colors, radius, shadows, spacing } from '@/theme/tokens';
 
 export type PuzzleMode = 'free' | 'daily';
@@ -69,7 +73,7 @@ export function PuzzleScreen({ theme, difficulty, mode = 'free', seed: initialSe
   const [game] = useState(() =>
     initialSeed !== undefined ? { seed: initialSeed, avoidWords: avoidWords ?? [] } : nextGame(theme),
   );
-  const { puzzle, found, hinted, hintCells, hintsUsed, hintsLeft, submitSelection, revealHint, revealWord, isComplete } = usePuzzle({
+  const { puzzle, found, hinted, hintCells, hintsUsed, hintsLeft, adHints, addAdHint, submitSelection, revealHint, revealWord, isComplete } = usePuzzle({
     theme,
     difficulty,
     gridSize,
@@ -119,9 +123,11 @@ export function PuzzleScreen({ theme, difficulty, mode = 'free', seed: initialSe
   }, []);
 
   /** Called when the last word is found: stop the clock and save the game. */
+  const ads = useAds();
   const finishGame = useCallback((hintsUsedFinal: number) => {
     const durationMs = Math.max(1, stopTimer());
     haptic('complete');
+    ads.recordGameFinished(mode === 'daily');
     const { completion: done, result } = recordGame({
       mode: 'classic',
       puzzleId: puzzle.id,
@@ -134,7 +140,7 @@ export function PuzzleScreen({ theme, difficulty, mode = 'free', seed: initialSe
       hintsUsed: hintsUsedFinal,
     });
     setCompletion({ puzzleId: puzzle.id, summary: done, result });
-  }, [stopTimer, recordGame, puzzle, mode, dailyDate]);
+  }, [stopTimer, recordGame, puzzle, mode, dailyDate, ads]);
 
   const screenReader = useScreenReader();
   // Tap-to-select: the first tapped letter waits here for the last one. Tied to
@@ -238,14 +244,34 @@ export function PuzzleScreen({ theme, difficulty, mode = 'free', seed: initialSe
     if (!isComplete && !paused) startTimer();
   }, [settings.tutorialsSeen, updateSettings, isComplete, paused, startTimer]);
 
+  // Out of hints: offer one more for watching a rewarded ad. The clock pauses while it plays.
+  const rewardedHint = useRewardedHint({
+    enabled: !isComplete,
+    onReward: () => {
+      addAdHint();
+      showFeedback({ tone: 'found', text: '+1 hint earned' });
+    },
+    onClosed: () => {
+      if (!isComplete && !paused) startTimer();
+    },
+  });
+  const offerAdHint = canOfferAdHint(hintsLeft, adHints) && rewardedHint.available;
+  const watchAdForHint = useCallback(() => {
+    stopTimer();
+    rewardedHint.show();
+  }, [stopTimer, rewardedHint]);
+
+  // Between free-play puzzles, Continue may show an interstitial first (never for the daily).
+  const interstitial = useInterstitialBreak({ enabled: mode === 'free', isDaily: mode === 'daily' });
+
   const continueAfterWin = useCallback(() => {
     if (mode === 'daily') {
       router.back();
       return;
     }
     // Next game: a fresh theme at the difficulty for the player's (maybe new) Classic level.
-    startAutoGame('classic', results, { replace: true });
-  }, [mode, results]);
+    interstitial.proceed(() => startAutoGame('classic', results, { replace: true }));
+  }, [mode, results, interstitial]);
 
   // While a tap anchor waits, keep it lit (pressing another cell is still just a tap).
   const isLine = selection !== null && (selection.start.row !== selection.end.row || selection.start.col !== selection.end.col);
@@ -352,18 +378,20 @@ export function PuzzleScreen({ theme, difficulty, mode = 'free', seed: initialSe
         ) : (
           <View style={styles.actions}>
             <Button
-              label={windowWidth < 380 ? 'Hint' : 'Use Hint'}
-              icon="lightbulb-outline"
+              label={offerAdHint ? (windowWidth < 380 ? '+1 Hint' : 'Watch ad: +1 hint') : windowWidth < 380 ? 'Hint' : 'Use Hint'}
+              icon={offerAdHint ? 'ondemand-video' : 'lightbulb-outline'}
               size={compact ? 'md' : 'lg'}
               style={styles.flex}
-              disabled={hintsLeft < 1}
-              onPress={hint}
+              disabled={hintsLeft < 1 && !offerAdHint}
+              onPress={offerAdHint ? watchAdForHint : hint}
               trailing={
-                <View style={styles.hintBadge}>
-                  <AppText variant="labelMd" color={colors.primaryInk}>
-                    {hintsLeft} Left
-                  </AppText>
-                </View>
+                offerAdHint ? undefined : (
+                  <View style={styles.hintBadge}>
+                    <AppText variant="labelMd" color={colors.primaryInk}>
+                      {hintsLeft} Left
+                    </AppText>
+                  </View>
+                )
               }
             />
             <IconButton

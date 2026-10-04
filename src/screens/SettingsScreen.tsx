@@ -7,6 +7,7 @@ import { ChipGroup } from '@/components/ui/ChipGroup';
 import { Icon, type IconName } from '@/components/ui/Icon';
 import { useToast } from '@/components/ui/Toast';
 import { APP_NAME, DELETE_ACCOUNT_URL, PRIVACY_URL, SUPPORT_EMAIL } from '@/config/app';
+import { useAds } from '@/features/ads/AdsProvider';
 import { haptic } from '@/features/feedback/haptics';
 import { useProgress } from '@/features/progress/ProgressProvider';
 import { requestReminderPermission } from '@/features/reminders/reminders';
@@ -85,6 +86,7 @@ function LinkRow({ icon, label, detail, onPress }: { icon: IconName; label: stri
 export function SettingsScreen() {
   const toast = useToast();
   const { settings, updateSettings } = useProgress();
+  const ads = useAds();
   const remindersSupported = Platform.OS !== 'web';
 
   const openLink = (url: string) => {
@@ -158,6 +160,14 @@ export function SettingsScreen() {
         </AppText>
         <View style={styles.group}>
           <LinkRow icon="privacy-tip" label="Privacy policy" detail="What we store and why" onPress={() => openLink(PRIVACY_URL)} />
+          {ads.privacyOptionsRequired && (
+            <LinkRow
+              icon="tune"
+              label="Ad privacy choices"
+              detail="Change how ads use your data"
+              onPress={() => ads.showPrivacyOptions().catch(() => toast.show('Couldn’t open ad privacy choices'))}
+            />
+          )}
           <LinkRow icon="person-remove" label="Delete account" detail="Remove your account and data" onPress={() => openLink(DELETE_ACCOUNT_URL)} />
           <LinkRow
             icon="mail-outline"

@@ -27,13 +27,20 @@ export function useChainPuzzle({ theme, difficulty, seed, avoidWords, preset }: 
   );
   const [found, setFound] = useState<FoundChainWord[]>([]);
   const [hinted, setHinted] = useState<string[]>([]);
+  /** Extra hints earned by watching rewarded ads. */
+  const [adHints, setAdHints] = useState(0);
   const [puzzleId, setPuzzleId] = useState(puzzle.id);
 
   if (puzzleId !== puzzle.id) {
     setPuzzleId(puzzle.id);
     setFound([]);
     setHinted([]);
+    setAdHints(0);
   }
+  const hintsLeft = CHAIN_HINTS + adHints - hinted.length;
+
+  /** One more hint, earned by watching a rewarded ad. */
+  const addAdHint = useCallback(() => setAdHints((n) => n + 1), []);
 
   const foundWords = useMemo(() => new Set(found.map((f) => f.word)), [found]);
 
@@ -51,12 +58,12 @@ export function useChainPuzzle({ theme, difficulty, seed, avoidWords, preset }: 
 
   /** Reveals the next unfound, unhinted word (shortest first). Returns it, or null if none left. */
   const revealHint = useCallback((): string | null => {
-    if (hinted.length >= CHAIN_HINTS) return null;
+    if (hintsLeft < 1) return null;
     const next = puzzle.placements.find((p) => !foundWords.has(p.word) && !hinted.includes(p.word));
     if (!next) return null;
     setHinted((prev) => [...prev, next.word]);
     return next.word;
-  }, [puzzle, foundWords, hinted]);
+  }, [hintsLeft, puzzle, foundWords, hinted]);
 
   /** First cell of each hinted word that isn't found yet (shown with a ring). */
   const hintCells = useMemo(
@@ -70,7 +77,9 @@ export function useChainPuzzle({ theme, difficulty, seed, avoidWords, preset }: 
     foundWords,
     hinted,
     hintCells,
-    hintsLeft: CHAIN_HINTS - hinted.length,
+    hintsLeft,
+    adHints,
+    addAdHint,
     submitPath,
     revealHint,
     isComplete: found.length === puzzle.words.length,

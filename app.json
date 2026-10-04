@@ -44,7 +44,15 @@
           "color": "#6C5CE7"
         }
       ],
-      "@react-native-google-signin/google-signin"
+      "@react-native-google-signin/google-signin",
+      [
+        "react-native-google-mobile-ads",
+        {
+          "androidAppId": "ca-app-pub-6296571874627648~8797562192",
+          "androidSdk": "classic",
+          "delayAppMeasurementInit": true
+        }
+      ]
     ],
     "scheme": "letterchain"
   }
