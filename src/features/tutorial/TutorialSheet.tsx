@@ -3,58 +3,44 @@ import { Modal, Pressable, StyleSheet, View } from 'react-native';
 
 import { AppText } from '@/components/ui/AppText';
 import { Button } from '@/components/ui/Button';
-import { colors, radius, shadows, spacing, wordColors } from '@/theme/tokens';
+import { colors, radius, shadows, spacing } from '@/theme/tokens';
 import { useReduceMotion } from '@/lib/useReduceMotion';
-import { LetterTile, TILE_IDLE, TILE_SELECTED } from '../puzzle/components/LetterTile';
+import { ChainGrid } from '../chain/components/ChainGrid';
+import type { FoundChainWord } from '../chain/hooks/useChainPuzzle';
+import { TileGrid } from '../puzzle/components/TileGrid';
+import type { Cell } from '../puzzle/engine/types';
+import { getTileLayout } from '../puzzle/game/tileLayout';
+import type { FoundWord } from '../puzzle/hooks/usePuzzle';
+import type { Selection } from '../puzzle/hooks/usePuzzleSelection';
 
 export type TutorialMode = 'classic' | 'chain';
 
 type Step = { title: string; body: string; art: ReactNode };
 
-const TILE = 38;
-const GAP = 6;
+const c = (row: number, col: number): Cell => ({ row, col });
 
-/** Small tile grid used as step artwork. `states[r][c]`: -2 idle, -1 selected, ≥0 found colour. */
-function MiniGrid({
-  letters,
-  states,
-  links = [],
-  rings = [],
-}: {
-  letters: string[];
-  states: number[][];
-  links?: { r: number; c: number; dir: 'h' | 'v'; color: string }[];
-  /** [row, col] tiles shown with the hint ring. */
-  rings?: [number, number][];
-}) {
-  const pitch = TILE + GAP;
+/** Step artwork drawn with the real Classic board (marker strokes, line guidance, hint rings). */
+function ClassicArt({ rows, found = [], selection = null, hints = [] }: { rows: string[]; found?: FoundWord[]; selection?: Selection | null; hints?: Cell[] }) {
   return (
-    <View style={styles.art}>
-      <View style={{ width: letters[0].length * pitch - GAP, height: letters.length * pitch - GAP }}>
-        {links.map((l, i) => (
-          <View
-            key={i}
-            style={[
-              styles.link,
-              { backgroundColor: l.color, left: l.c * pitch + (l.dir === 'h' ? TILE / 2 : TILE / 2 - 6), top: l.r * pitch + (l.dir === 'v' ? TILE / 2 : TILE / 2 - 6) },
-              l.dir === 'h' ? { width: pitch, height: 12 } : { width: 12, height: pitch },
-            ]}
-          />
-        ))}
-        {letters.map((row, r) => (
-          <View key={r} style={[styles.row, { gap: GAP, marginBottom: r < letters.length - 1 ? GAP : 0 }]}>
-            {row.split('').map((letter, c) => (
-              <LetterTile key={c} letter={letter} size={TILE} state={states[r][c]} ring={rings.some(([rr, cc]) => rr === r && cc === c)} />
-            ))}
-          </View>
-        ))}
+    <View style={styles.art} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
+      <View style={styles.static}>
+        <TileGrid grid={rows.map((r) => r.split(''))} layout={getTileLayout(rows.length, 176)} found={found} selection={selection} hintCells={hints} />
       </View>
     </View>
   );
 }
 
-const I = TILE_IDLE;
-const S = TILE_SELECTED;
+/** Step artwork drawn with the real Chain board (beads, threads, next-letter rings). */
+function ChainArt({ rows, found = [], path = [] }: { rows: string[]; found?: FoundChainWord[]; path?: Cell[] }) {
+  const n = Math.max(rows.length, rows[0].length);
+  return (
+    <View style={styles.art} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
+      <View style={styles.static}>
+        <ChainGrid grid={rows.map((r) => r.split(''))} layout={getTileLayout(n, 156, 10)} found={found} path={path} hintCells={[]} />
+      </View>
+    </View>
+  );
+}
 
 /** Built on demand (the artwork uses styles declared below). */
 function stepsFor(mode: TutorialMode): Step[] {
@@ -63,17 +49,26 @@ function stepsFor(mode: TutorialMode): Step[] {
     {
       title: 'Find the hidden words',
       body: 'Words hide in straight lines: across, down and diagonally. On harder levels they can run backwards too.',
-      art: <MiniGrid letters={['CATX', 'QOWE', 'ZTWS', 'DOGK']} states={[[0, 0, 0, I], [I, 1, I, I], [I, I, 1, I], [2, 2, 2, I]]} />,
+      art: (
+        <ClassicArt
+          rows={['CATX', 'QOWE', 'ZTWS', 'DOGL']}
+          found={[
+            { word: 'CAT', start: c(0, 0), end: c(0, 2), colorIndex: 0 },
+            { word: 'OWL', start: c(1, 1), end: c(3, 3), colorIndex: 1 },
+            { word: 'DOG', start: c(3, 0), end: c(3, 2), colorIndex: 2 },
+          ]}
+        />
+      ),
     },
     {
       title: 'Drag or tap to select',
       body: 'Slide from the first letter to the last, or tap the first letter and then the last. Found words keep their colour.',
-      art: <MiniGrid letters={['LION', 'XKQZ']} states={[[S, S, S, S], [I, I, I, I]]} />,
+      art: <ClassicArt rows={['XQZK', 'LION', 'BKTE', 'QRSA']} selection={{ start: c(1, 0), end: c(1, 3) }} />,
     },
     {
       title: 'Stuck? Use a hint',
       body: 'A hint rings the first letter of a word. Reveal finds a whole word for 2 hints. Fewer hints, higher score.',
-      art: <MiniGrid letters={['BEAR', 'QXZK']} states={[[I, I, I, I], [I, I, I, I]]} rings={[[0, 0]]} />,
+      art: <ClassicArt rows={['BEAR', 'QXZK', 'TOMS', 'JUNE']} hints={[c(0, 0)]} />,
     },
   ],
   chain: [
@@ -81,19 +76,12 @@ function stepsFor(mode: TutorialMode): Step[] {
       title: 'Every letter is used',
       body: 'The grid is made only of hidden words. Each letter belongs to exactly one of them — find them all and the grid is complete.',
       art: (
-        <MiniGrid
-          letters={['CAT', 'OEM', 'WLU']}
-          states={[[0, 0, 0], [1, 2, 2], [1, 1, 2]]}
-          links={[
-            // CAT across the top
-            { r: 0, c: 0, dir: 'h', color: wordColors[0].lip },
-            { r: 0, c: 1, dir: 'h', color: wordColors[0].lip },
-            // OWL: down, then right
-            { r: 1, c: 0, dir: 'v', color: wordColors[1].lip },
-            { r: 2, c: 0, dir: 'h', color: wordColors[1].lip },
-            // EMU: right, then down
-            { r: 1, c: 1, dir: 'h', color: wordColors[2].lip },
-            { r: 1, c: 2, dir: 'v', color: wordColors[2].lip },
+        <ChainArt
+          rows={['CAT', 'OEM', 'WLU']}
+          found={[
+            { word: 'CAT', cells: [c(0, 0), c(0, 1), c(0, 2)], colorIndex: 0 },
+            { word: 'OWL', cells: [c(1, 0), c(2, 0), c(2, 1)], colorIndex: 1 },
+            { word: 'EMU', cells: [c(1, 1), c(1, 2), c(2, 2)], colorIndex: 2 },
           ]}
         />
       ),
@@ -101,18 +89,8 @@ function stepsFor(mode: TutorialMode): Step[] {
     {
       title: 'Trace winding paths',
       body: 'Drag or tap through neighbouring letters — up, down or sideways, never diagonally. Go back a letter to undo it.',
-      art: (
-        <MiniGrid
-          letters={['SNA', 'XEK']}
-          states={[[S, S, S], [I, S, S]]}
-          links={[
-            { r: 0, c: 0, dir: 'h', color: colors.primaryDark },
-            { r: 0, c: 1, dir: 'h', color: colors.primaryDark },
-            { r: 0, c: 2, dir: 'v', color: colors.primaryDark },
-            { r: 1, c: 1, dir: 'h', color: colors.primaryDark },
-          ]}
-        />
-      ),
+      // SNAKE being traced; the dashed ring shows where it can go next.
+      art: <ChainArt rows={['SNA', 'XEK']} path={[c(0, 0), c(0, 1), c(0, 2), c(1, 2), c(1, 1)]} />,
     },
     {
       title: 'Only lengths are shown',
@@ -213,8 +191,8 @@ const styles = StyleSheet.create({
   },
   top: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   art: { alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surfaceLow, borderRadius: radius.lg, paddingVertical: 20, minHeight: 150 },
-  row: { flexDirection: 'row' },
-  link: { position: 'absolute', borderRadius: 6 },
+  // Artwork only: never takes touches.
+  static: { pointerEvents: 'none' },
   chips: { gap: 8, alignItems: 'flex-start' },
   lengthChip: { flexDirection: 'row', alignItems: 'center', gap: 6, minHeight: 30, paddingHorizontal: 10, borderRadius: radius.pill, backgroundColor: colors.primarySoft },
   boxes: { flexDirection: 'row', gap: 3 },

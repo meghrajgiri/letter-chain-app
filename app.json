@@ -52,7 +52,8 @@
           "androidSdk": "classic",
           "delayAppMeasurementInit": true
         }
-      ]
+      ],
+      "@sentry/react-native"
     ],
     "scheme": "letterchain",
     "extra": {

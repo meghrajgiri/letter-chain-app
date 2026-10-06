@@ -16,11 +16,12 @@ import { AdsProvider } from '@/features/ads/AdsProvider';
 import { DailySync } from '@/features/daily/DailySync';
 import { ProgressProvider, useProgress } from '@/features/progress/ProgressProvider';
 import { ReminderSync } from '@/features/reminders/ReminderSync';
+import { wrapRoot } from '@/lib/sentry';
 import { colors, fonts } from '@/theme/tokens';
 
 SplashScreen.preventAutoHideAsync();
 
-export default function RootLayout() {
+function RootLayout() {
   const [loaded, error] = useFonts({
     PlusJakartaSans_500Medium,
     PlusJakartaSans_600SemiBold,
@@ -73,5 +74,7 @@ function AppShell() {
     </AccountProvider>
   );
 }
+
+export default wrapRoot(RootLayout);
 
 export { ErrorScreen as ErrorBoundary } from '@/components/ErrorScreen';

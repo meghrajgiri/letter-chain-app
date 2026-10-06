@@ -50,6 +50,7 @@ Use Google's official guide for what the Mobile Ads SDK collects: <https://devel
 | Device or other IDs (advertising ID) | AdMob SDK | Advertising, analytics, fraud prevention | Required while ads run |
 | Approximate location (from IP) | AdMob SDK | Advertising, analytics, fraud prevention | Required while ads run |
 | App interactions; crash logs and diagnostics | AdMob SDK | Advertising, analytics, fraud prevention | Required while ads run |
+| Crash logs; diagnostics (device model, OS, app version, memory) | App (Sentry) | Analytics (fixing crashes) | Collected automatically; not linked to the user's identity |
 | Name, email address | App (Google sign-in) | Account management | Optional (guests don't sign in) |
 | App activity: game results | App (when signed in) | App functionality | Optional |
 

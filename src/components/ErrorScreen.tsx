@@ -1,6 +1,8 @@
 import { router, type ErrorBoundaryProps } from 'expo-router';
+import { useEffect } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
+import { reportError } from '@/lib/sentry';
 import { colors, radius, spacing } from '@/theme/tokens';
 import { Button } from './ui/Button';
 import { Icon } from './ui/Icon';
@@ -10,6 +12,7 @@ import { Icon } from './ui/Icon';
  * Uses plain Text so it still renders if fonts or providers failed.
  */
 export function ErrorScreen({ error, retry }: ErrorBoundaryProps) {
+  useEffect(() => reportError(error), [error]);
   return (
     <View style={styles.screen} accessibilityRole="alert">
       <View style={styles.icon}>
