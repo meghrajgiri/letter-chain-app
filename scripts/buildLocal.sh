@@ -12,6 +12,13 @@ case "$PROFILE" in
   *) echo "Unknown profile: $PROFILE (use production or preview)" >&2; exit 1 ;;
 esac
 
+# npm runs this without your shell profile, so fall back to the standard install paths.
+export ANDROID_HOME="${ANDROID_HOME:-$HOME/Library/Android/sdk}"
+if [ -z "$JAVA_HOME" ] && [ -x /usr/libexec/java_home ]; then
+  JAVA_HOME="$(/usr/libexec/java_home -v 17 2>/dev/null || true)"
+  export JAVA_HOME
+fi
+
 set -a
 [ -f .env ] && . ./.env
 [ -f .env.local ] && . ./.env.local
