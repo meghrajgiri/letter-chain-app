@@ -15,8 +15,9 @@ type Props = {
 };
 
 /**
- * The pill above the grid: live selection while dragging, then a short
- * found / already-found confirmation. Fixed height so the grid never jumps.
+ * The full-width strip above the board: the letters being selected (clear of
+ * the finger, which covers them on the board), then a short found / miss
+ * confirmation, otherwise a gentle prompt. Fixed height so the board never jumps.
  */
 export const SelectionChip = memo(function SelectionChip({ selectionText, feedback, hint }: Props) {
   let content;
@@ -43,11 +44,13 @@ export const SelectionChip = memo(function SelectionChip({ selectionText, feedba
         </AppText>
       </View>
     );
-  } else {
+  } else if (hint.trim()) {
     content = (
-      <AppText variant="bodySm" color={colors.inkMuted}>
-        {hint}
-      </AppText>
+      <View style={[styles.pill, styles.idle]}>
+        <AppText variant="bodySm" color={colors.inkMuted} numberOfLines={1} style={styles.feedbackText}>
+          {hint}
+        </AppText>
+      </View>
     );
   }
   return (
@@ -58,16 +61,18 @@ export const SelectionChip = memo(function SelectionChip({ selectionText, feedba
 });
 
 const styles = StyleSheet.create({
-  slot: { height: 48, alignItems: 'center', justifyContent: 'center' },
+  slot: { height: 52, justifyContent: 'center' },
   pill: {
-    maxWidth: '100%',
+    alignSelf: 'stretch',
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
     gap: 10,
     paddingHorizontal: 18,
-    height: 44,
-    borderRadius: radius.pill,
+    height: 52,
+    borderRadius: radius.xl,
   },
+  idle: { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border },
   active: { backgroundColor: colors.primary, boxShadow: shadows.primaryGlow },
   found: { backgroundColor: colors.greenSoft, boxShadow: shadows.greenGlow },
   info: { backgroundColor: colors.surfaceMuted },

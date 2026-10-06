@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "Letter Chain",
-    "slug": "word-search",
+    "slug": "letter-chain",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -54,6 +54,13 @@
         }
       ]
     ],
-    "scheme": "letterchain"
+    "scheme": "letterchain",
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "e5216a16-8490-46f2-8efe-a47f27ebf5a4"
+      }
+    },
+    "owner": "mac2056"
   }
 }

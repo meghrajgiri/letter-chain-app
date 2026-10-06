@@ -138,12 +138,17 @@ export function ProfileScreen() {
           </View>
         )}
 
-        <AppText variant="labelMd" color={colors.inkMuted} style={styles.sectionLabel}>
-          DEVELOPER
-        </AppText>
-        <View style={styles.group}>
-          <Row icon="science" label="Puzzle Studio" detail="Generate, inspect and batch-test puzzles" onPress={() => router.push('/studio')} />
-        </View>
+        {/* Developer tools: development builds only, never in the store version. */}
+        {__DEV__ && (
+          <>
+            <AppText variant="labelMd" color={colors.inkMuted} style={styles.sectionLabel}>
+              DEVELOPER
+            </AppText>
+            <View style={styles.group}>
+              <Row icon="science" label="Puzzle Studio" detail="Generate, inspect and batch-test puzzles" onPress={() => router.push('/studio')} />
+            </View>
+          </>
+        )}
       </ScrollView>
     </SafeAreaView>
   );

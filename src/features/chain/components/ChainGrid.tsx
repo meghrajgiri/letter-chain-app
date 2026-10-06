@@ -1,8 +1,8 @@
 import { memo, useMemo } from 'react';
-import { Pressable, StyleSheet, View, type GestureResponderHandlers } from 'react-native';
+import { Pressable, StyleSheet, Text, View, type GestureResponderHandlers } from 'react-native';
 
-import { colors, radius, wordColors } from '@/theme/tokens';
-import { LetterTile, TILE_IDLE, TILE_SELECTED, tileLabel } from '../../puzzle/components/LetterTile';
+import { colors, fonts, wordColors } from '@/theme/tokens';
+import { TILE_IDLE, TILE_SELECTED, tileLabel, type TileState } from '../../puzzle/components/LetterTile';
 import { cellKey } from '../../puzzle/engine/gridScan';
 import type { Cell } from '../../puzzle/engine/types';
 import type { TileLayout } from '../../puzzle/game/tileLayout';
@@ -33,7 +33,36 @@ function connectorsFor(cells: readonly Cell[], color: string, prefix: string): C
   return out;
 }
 
-/** Chain-mode letter grid: tiles plus connectors that trace each found word and the live path. */
+type BeadLook = 'idle' | 'found' | 'selected' | 'next' | 'hint';
+
+/** One letter as a round bead; the threads between beads show each word's route. */
+const Bead = memo(function Bead({ letter, size, look, colorIndex }: { letter: string; size: number; look: BeadLook; colorIndex: number }) {
+  const word = wordColors[colorIndex % wordColors.length];
+  const style =
+    look === 'found'
+      ? { backgroundColor: word.bg, borderColor: word.lip, borderWidth: 2 }
+      : look === 'selected'
+        ? { backgroundColor: colors.primary, borderColor: colors.primaryDark, borderWidth: 2 }
+        : look === 'next'
+          ? { backgroundColor: colors.surface, borderColor: '#A99FF2', borderWidth: 2, borderStyle: 'dashed' as const }
+          : look === 'hint'
+            ? { backgroundColor: colors.yellowSoft, borderColor: colors.yellow, borderWidth: 2.5 }
+            : { backgroundColor: colors.surfaceLow, borderColor: '#DEDAF0', borderBottomWidth: 3 };
+  const ink = look === 'found' ? word.ink : look === 'selected' ? colors.primaryInk : colors.ink;
+  return (
+    <View style={[styles.bead, { width: size, height: size, borderRadius: size / 2 }, style]}>
+      <Text allowFontScaling={false} style={[styles.letter, { fontSize: Math.round(size * 0.46), lineHeight: Math.round(size * 0.58), color: ink }]}>
+        {letter}
+      </Text>
+    </View>
+  );
+});
+
+/**
+ * Chain-mode board: letters as beads on threads. Found words keep a coloured
+ * thread through their beads; the live path is a violet thread, and the
+ * letters it can continue to (up, down or sideways) get a dashed ring.
+ */
 export const ChainGrid = memo(function ChainGrid({
   grid,
   layout,
@@ -56,6 +85,18 @@ export const ChainGrid = memo(function ChainGrid({
   }, [found]);
   const selected = useMemo(() => new Set(path.map(cellKey)), [path]);
   const rings = useMemo(() => new Set(hintCells.map(cellKey)), [hintCells]);
+  // Free neighbours of the path's last letter: where the word can go next.
+  const next = useMemo(() => {
+    const last = path[path.length - 1];
+    const out = new Set<string>();
+    if (!last) return out;
+    for (const [dr, dc] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+      const key = `${last.row + dr},${last.col + dc}`;
+      if (last.row + dr < 0 || last.col + dc < 0 || last.row + dr >= rows || last.col + dc >= cols) continue;
+      if (!foundColor.has(key) && !selected.has(key)) out.add(key);
+    }
+    return out;
+  }, [path, rows, cols, foundColor, selected]);
 
   const connectors = useMemo(
     () => [
@@ -66,7 +107,7 @@ export const ChainGrid = memo(function ChainGrid({
   );
 
   const { tile, pitch } = layout;
-  const thickness = Math.max(6, Math.round(tile * 0.34));
+  const thickness = Math.max(6, Math.round(tile * 0.3));
 
   return (
     <View style={styles.well} accessibilityLabel={accessibilityLabel} accessibilityHint={accessibilityHint}>
@@ -93,9 +134,19 @@ export const ChainGrid = memo(function ChainGrid({
           <View key={r} style={[styles.row, { gap: layout.gap }]}>
             {row.map((letter, c) => {
               const key = `${r},${c}`;
-              const state = selected.has(key) ? TILE_SELECTED : (foundColor.get(key) ?? TILE_IDLE);
+              const colorIndex = foundColor.get(key);
+              const state: TileState = selected.has(key) ? TILE_SELECTED : (colorIndex ?? TILE_IDLE);
               const ring = rings.has(key);
-              const el = <LetterTile key={c} letter={letter} size={tile} state={state} ring={ring} />;
+              const look: BeadLook = selected.has(key)
+                ? 'selected'
+                : colorIndex !== undefined
+                  ? 'found'
+                  : next.has(key)
+                    ? 'next'
+                    : ring
+                      ? 'hint'
+                      : 'idle';
+              const el = <Bead key={c} letter={letter} size={tile} look={look} colorIndex={colorIndex ?? 0} />;
               if (!screenReader) return el;
               return (
                 <Pressable key={c} accessibilityRole="button" accessibilityLabel={tileLabel(letter, r, c, state, ring)} onPress={() => onTileTap?.({ row: r, col: c })}>
@@ -111,7 +162,9 @@ export const ChainGrid = memo(function ChainGrid({
 });
 
 const styles = StyleSheet.create({
-  well: { padding: CHAIN_WELL_PADDING, borderRadius: radius.lg, backgroundColor: colors.surfaceLow },
+  well: { padding: CHAIN_WELL_PADDING },
   row: { flexDirection: 'row' },
   connector: { position: 'absolute' },
+  bead: { alignItems: 'center', justifyContent: 'center', userSelect: 'none' },
+  letter: { fontFamily: fonts.extrabold, textAlign: 'center', includeFontPadding: false, userSelect: 'none' },
 });
