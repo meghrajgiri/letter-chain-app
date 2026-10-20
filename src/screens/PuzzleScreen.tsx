@@ -11,7 +11,7 @@ import { buildShareText, pointsPerWord, type CompletionSummary, type GameResult 
 import { shareText } from '@/features/progress/shareResult';
 import { SHARE_URL } from '@/config/app';
 import { SignInPrompt } from '@/features/account/SignInPrompt';
-import { haptic } from '@/features/feedback/haptics';
+import { playFeedback } from '@/features/feedback/feedback';
 import { useProgress } from '@/features/progress/ProgressProvider';
 import { TutorialSheet } from '@/features/tutorial/TutorialSheet';
 import { CompletionView } from '@/features/puzzle/components/CompletionView';
@@ -127,7 +127,7 @@ export function PuzzleScreen({ theme, difficulty, mode = 'free', seed: initialSe
   const ads = useAds();
   const finishGame = useCallback((hintsUsedFinal: number) => {
     const durationMs = Math.max(1, stopTimer());
-    haptic('complete');
+    playFeedback('complete');
     ads.recordGameFinished(mode === 'daily');
     const { completion: done, result } = recordGame({
       mode: 'classic',
@@ -154,14 +154,14 @@ export function PuzzleScreen({ theme, difficulty, mode = 'free', seed: initialSe
     (start: Cell, end: Cell): boolean => {
       const result = submitSelection(start, end);
       if (result.type === 'found') {
-        haptic('found');
+        playFeedback('found');
         showFeedback({ tone: 'found', text: `${result.word} +${pointsPerWord('classic', puzzle.difficulty)} pts` });
         announceFeedback(`Found ${result.word}`);
         if (found.length + 1 === puzzle.words.length) finishGame(hintsUsed);
         return true;
       }
       if (result.type === 'backwards') {
-        haptic('warning');
+        playFeedback('warning');
         showFeedback({ tone: 'info', text: `Close! Start ${result.word} from its first letter` });
         announceFeedback(`${result.word} runs the other way. Start from its first letter.`);
         return true;
@@ -189,7 +189,7 @@ export function PuzzleScreen({ theme, difficulty, mode = 'free', seed: initialSe
       if (isComplete || paused || tutorialOpen) return;
       const tap = resolveTap(anchor, cell);
       if (tap.type === 'anchor') {
-        haptic('select');
+        playFeedback('select');
         setTapAnchor({ puzzleId: puzzle.id, cell: tap.anchor });
         announceFeedback(`${puzzle.grid[cell.row][cell.col]} selected. Tap the last letter of the word.`);
       } else if (tap.type === 'cancel') {
@@ -198,7 +198,7 @@ export function PuzzleScreen({ theme, difficulty, mode = 'free', seed: initialSe
       } else {
         setTapAnchor(null);
         if (!submitLine(tap.start, tap.end)) {
-          haptic('warning');
+          playFeedback('warning');
           showFeedback({ tone: 'info', text: 'No word there — try again' });
           announceFeedback('No word there');
         }
@@ -210,8 +210,10 @@ export function PuzzleScreen({ theme, difficulty, mode = 'free', seed: initialSe
   const hint = useCallback(() => {
     const word = revealHint();
     // The hint itself stays pinned above the board (see pinnedHint) until the word is found.
-    if (word) announceFeedback(`Hint: ${word} starts at the yellow ring`);
-    else toast.show(hintsLeft < 1 ? 'No hints left for this puzzle' : 'Every remaining word is already hinted');
+    if (word) {
+      playFeedback('hint');
+      announceFeedback(`Hint: ${word} starts at the yellow ring`);
+    } else toast.show(hintsLeft < 1 ? 'No hints left for this puzzle' : 'Every remaining word is already hinted');
   }, [revealHint, toast, hintsLeft]);
 
   const reveal = useCallback(() => {
@@ -220,6 +222,7 @@ export function PuzzleScreen({ theme, difficulty, mode = 'free', seed: initialSe
       toast.show('Revealing a word needs 2 hints');
       return;
     }
+    playFeedback('hint');
     showFeedback({ tone: 'found', text: `Revealed ${revealed.word}` });
     if (found.length + 1 === puzzle.words.length) finishGame(revealed.hintsUsed);
   }, [revealWord, toast, showFeedback, found.length, puzzle.words.length, finishGame]);
@@ -228,7 +231,7 @@ export function PuzzleScreen({ theme, difficulty, mode = 'free', seed: initialSe
     gridSize: puzzle.gridSize,
     cellSize: tileLayout.pitch,
     enabled: !isComplete && !paused && !tutorialOpen,
-    onSelectionStart: () => haptic('select'),
+    onSelectionStart: () => playFeedback('select'),
     onSelectionEnd: handleSelectionEnd,
     onTap: handleTap,
   });

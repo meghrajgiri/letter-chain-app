@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef } from 'react';
 import { useInterstitialAd } from 'react-native-google-mobile-ads';
 
+import { holdMusic } from '../feedback/music';
 import { AD_UNITS, useAds } from './AdsProvider';
 
 /**
@@ -12,8 +13,13 @@ export function useInterstitialBreak({ enabled, isDaily }: { enabled: boolean; i
   const active = ready && enabled && !isDaily;
   const { status, show, load } = useInterstitialAd({ adUnitId: AD_UNITS.betweenPuzzles, autoLoad: active });
   const pending = useRef<(() => void) | null>(null);
+  // The ad has its own audio, so the music waits until it closes (or the screen goes away).
+  const releaseMusic = useRef<(() => void) | null>(null);
+  useEffect(() => () => releaseMusic.current?.(), []);
 
   const runPending = useCallback(() => {
+    releaseMusic.current?.();
+    releaseMusic.current = null;
     const next = pending.current;
     pending.current = null;
     next?.();
@@ -36,6 +42,7 @@ export function useInterstitialBreak({ enabled, isDaily }: { enabled: boolean; i
       }
       pending.current = next;
       markInterstitialShown();
+      releaseMusic.current ??= holdMusic();
       // Press-safe: a failed show arrives as status 'error', which runs `next`.
       show();
     },
