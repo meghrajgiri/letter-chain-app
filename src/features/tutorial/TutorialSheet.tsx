@@ -48,7 +48,7 @@ function stepsFor(mode: TutorialMode): Step[] {
   classic: [
     {
       title: 'Find the hidden words',
-      body: 'Words hide in straight lines: across, down and diagonally. On harder levels they can run backwards too.',
+      body: 'Words hide in straight lines: across, down and diagonally. On harder levels they can run backwards too. Always drag from a word’s first letter to its last.',
       art: (
         <ClassicArt
           rows={['CATX', 'QOWE', 'ZTWS', 'DOGL']}

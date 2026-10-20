@@ -14,7 +14,12 @@ export type FoundWord = {
   revealed?: boolean;
 };
 
-export type SubmitResult = { type: 'found'; word: string } | { type: 'already-found'; word: string } | { type: 'miss' };
+export type SubmitResult =
+  | { type: 'found'; word: string }
+  | { type: 'already-found'; word: string }
+  /** The line spells a word, but dragged from its last letter to its first. Words must be read in order. */
+  | { type: 'backwards'; word: string }
+  | { type: 'miss' };
 
 type Options = {
   theme: string;
@@ -55,12 +60,12 @@ export function usePuzzle({ theme, difficulty, seed, gridSize, wordCount, avoidW
   const submitSelection = useCallback(
     (start: Cell, end: Cell): SubmitResult => {
       const match = matchSelection(puzzle.grid, start, end, puzzle.words, foundWords);
-      if (match) {
-        // Store in the word's reading direction regardless of drag direction.
-        const [s, e] = match.reversed ? [end, start] : [start, end];
-        setFound((prev) => [...prev, { word: match.word, start: s, end: e, colorIndex: prev.length }]);
+      // A word only counts when dragged from its first letter to its last.
+      if (match && !match.reversed) {
+        setFound((prev) => [...prev, { word: match.word, start, end, colorIndex: prev.length }]);
         return { type: 'found', word: match.word };
       }
+      if (match) return { type: 'backwards', word: match.word };
       const again = matchSelection(puzzle.grid, start, end, puzzle.words, new Set());
       return again ? { type: 'already-found', word: again.word } : { type: 'miss' };
     },

@@ -159,6 +159,12 @@ export function PuzzleScreen({ theme, difficulty, mode = 'free', seed: initialSe
         if (found.length + 1 === puzzle.words.length) finishGame(hintsUsed);
         return true;
       }
+      if (result.type === 'backwards') {
+        haptic('warning');
+        showFeedback({ tone: 'info', text: `Close! Start ${result.word} from its first letter` });
+        announceFeedback(`${result.word} runs the other way. Start from its first letter.`);
+        return true;
+      }
       if (result.type === 'already-found') {
         showFeedback({ tone: 'info', text: `${result.word} already found` });
         announceFeedback(`${result.word} already found`);

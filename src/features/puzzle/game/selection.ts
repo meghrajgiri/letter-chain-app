@@ -102,8 +102,11 @@ export type SelectionMatch = {
 };
 
 /**
- * Matches a straight selection against the unfound target words, forwards
- * or backwards. Returns `null` for non-straight selections or no match.
+ * Matches a straight selection against the unfound target words. A forward
+ * read (first letter to last) always wins over a backward one, so `reversed`
+ * is only true when no word reads forwards along the line. Callers decide
+ * whether a reversed match counts (Classic does not). Returns `null` for
+ * non-straight selections or no match.
  */
 export function matchSelection(
   grid: Grid,
@@ -116,12 +119,11 @@ export function matchSelection(
   if (!cells || cells.length < 2) return null;
   const forward = readCells(grid, cells);
   const backward = forward.split('').reverse().join('');
-  for (const word of words) {
-    if (foundWords.has(word)) continue;
-    if (word === forward) return { word, reversed: false };
-    if (word === backward) return { word, reversed: true };
-  }
-  return null;
+  const open = words.filter((word) => !foundWords.has(word));
+  const ahead = open.find((word) => word === forward);
+  if (ahead) return { word: ahead, reversed: false };
+  const behind = open.find((word) => word === backward);
+  return behind ? { word: behind, reversed: true } : null;
 }
 
 export type TapResult =
