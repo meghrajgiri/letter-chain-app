@@ -1,5 +1,5 @@
-import type { GameResult } from '../../progress/types';
-import { fromRow, syncResults, toRow, type ResultRow, type SyncApi } from '../sync';
+import type { GameResult, StreakSave } from '../../progress/types';
+import { fromRow, syncResults, syncStreakSaves, toRow, type ResultRow, type StreakSaveApi, type StreakSaveRow, type SyncApi } from '../sync';
 
 const result = (id: string, extra: Partial<GameResult> = {}): GameResult => ({
   id,
@@ -65,5 +65,28 @@ describe('syncResults', () => {
     expect(server.rows).toHaveLength(1);
     expect(second.downloaded).toEqual([]);
     expect(second.cursor).toBe(first.cursor);
+  });
+});
+
+describe('syncStreakSaves', () => {
+  it('uploads new saves once and returns every save on the server', async () => {
+    const rows: StreakSaveRow[] = [{ id: 'remote', day: '2026-10-10', saved_at: '2026-10-11T08:00:00.000Z', uploaded_at: '2026-10-11T08:00:01.000Z' }];
+    const api: StreakSaveApi = {
+      async upload(batch) {
+        for (const row of batch) if (!rows.some((r) => r.id === row.id)) rows.push({ ...row, uploaded_at: '2026-10-20T09:00:00.000Z' });
+      },
+      async pullAll() {
+        return [...rows];
+      },
+    };
+    const local: StreakSave = { id: 'local', day: '2026-10-19', savedAt: '2026-10-20T08:30:00.000Z', syncedAt: null };
+    const out = await syncStreakSaves(api, [local]);
+    expect(out.uploadedIds).toEqual(['local']);
+    expect(out.downloaded.map((s) => s.id).sort()).toEqual(['local', 'remote']);
+    expect(out.downloaded.find((s) => s.id === 'remote')).toEqual({ id: 'remote', day: '2026-10-10', savedAt: '2026-10-11T08:00:00.000Z', syncedAt: '2026-10-11T08:00:01.000Z' });
+
+    // Uploading again (e.g. after a failed apply) doesn't duplicate.
+    await syncStreakSaves(api, [local]);
+    expect(rows).toHaveLength(2);
   });
 });

@@ -27,5 +27,20 @@ export type GameResult = {
   syncedAt?: string | null;
 };
 
+/**
+ * A missed daily the player saved (by watching a rewarded ad), so the streak
+ * carries on through it. Append-only and synced like results.
+ */
+export type StreakSave = {
+  /** UUID generated on the device; also the server id (idempotent upload). */
+  id: string;
+  /** The daily date ('YYYY-MM-DD', UTC like `dailyDate`) that was missed and saved. */
+  day: string;
+  /** ISO timestamp. */
+  savedAt: string;
+  /** ISO timestamp of upload; null = not synced yet. */
+  syncedAt?: string | null;
+};
+
 /** Input for recording a new result (id/timestamps are filled in). */
 export type NewGameResult = Omit<GameResult, 'id' | 'completedAt' | 'localDate' | 'syncedAt'>;

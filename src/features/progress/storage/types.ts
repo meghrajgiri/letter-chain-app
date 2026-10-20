@@ -1,4 +1,4 @@
-import type { GameResult } from '../types';
+import type { GameResult, StreakSave } from '../types';
 
 export type WordHistoryEntry = { puzzleId: string; theme: string; words: string[]; playedAt: string };
 
@@ -11,9 +11,13 @@ export type ProgressStore = {
   addWordHistory(entry: WordHistoryEntry, keepPerTheme: number): Promise<void>;
   /** Marks uploaded results as synced. */
   markSynced(ids: readonly string[], syncedAt: string): Promise<void>;
-  /** Removes results that are safely on the server (used on sign-out). */
+  /** Oldest first. */
+  loadStreakSaves(): Promise<StreakSave[]>;
+  addStreakSave(save: StreakSave): Promise<void>;
+  markStreakSavesSynced(ids: readonly string[], syncedAt: string): Promise<void>;
+  /** Removes results and streak saves that are safely on the server (used on sign-out). */
   deleteSyncedResults(): Promise<void>;
-  /** Removes every result (used after deleting the account). */
+  /** Removes every result and streak save (used after deleting the account). */
   deleteAllResults(): Promise<void>;
   getSetting(key: string): Promise<string | null>;
   setSetting(key: string, value: string): Promise<void>;

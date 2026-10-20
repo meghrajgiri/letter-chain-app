@@ -11,13 +11,15 @@ type Options = {
   onReward: () => void;
   /** Called when the ad closes (or fails to show), e.g. to resume the clock. */
   onClosed?: () => void;
+  /** Which rewarded unit to load (separate units keep each placement's revenue visible in AdMob). */
+  unit?: 'rewardedHint' | 'streakSave';
 };
 
-/** A rewarded ad that grants one hint. `available` is true once an ad is ready to show. */
-export function useRewardedHint({ enabled, onReward, onClosed }: Options): { available: boolean; show: () => void } {
+/** A rewarded ad (by default, one that grants a hint). `available` is true once an ad is ready to show. */
+export function useRewardedHint({ enabled, onReward, onClosed, unit = 'rewardedHint' }: Options): { available: boolean; show: () => void } {
   const { ready } = useAds();
   const active = ready && enabled;
-  const { status, show, load, earnedReward } = useRewardedAd({ adUnitId: AD_UNITS.rewardedHint, autoLoad: active });
+  const { status, show, load, earnedReward } = useRewardedAd({ adUnitId: AD_UNITS[unit], autoLoad: active });
 
   const latest = useRef({ onReward, onClosed });
   useLayoutEffect(() => {

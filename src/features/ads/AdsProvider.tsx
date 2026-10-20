@@ -18,6 +18,8 @@ import {
 export const AD_UNITS = {
   rewardedHint: __DEV__ ? TestIds.REWARDED : 'ca-app-pub-6296571874627648/6139609264',
   betweenPuzzles: __DEV__ ? TestIds.INTERSTITIAL : 'ca-app-pub-6296571874627648/8715913553',
+  // TODO: create a "Streak save" rewarded unit in AdMob and put its id here; until then it shares the hint unit.
+  streakSave: __DEV__ ? TestIds.REWARDED : 'ca-app-pub-6296571874627648/6139609264',
 } as const;
 
 export type AdsApi = {

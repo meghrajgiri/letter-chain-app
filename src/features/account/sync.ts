@@ -4,7 +4,7 @@
  * device doesn't have. Duplicates are ignored on both sides by id.
  * Pure logic over a small API so it can be tested without a server.
  */
-import type { GameMode, GameResult } from '../progress/types';
+import type { GameMode, GameResult, StreakSave } from '../progress/types';
 
 export type ResultRow = {
   id: string;
@@ -95,4 +95,34 @@ export async function syncResults(api: SyncApi, pending: readonly GameResult[], 
     if (page.length < PULL_PAGE) break;
   }
   return { uploadedIds, downloaded, cursor: next };
+}
+
+// ------------------------------------------------------------ streak saves
+
+export type StreakSaveRow = { id: string; day: string; saved_at: string; uploaded_at?: string };
+
+export const saveToRow = (s: StreakSave): StreakSaveRow => ({ id: s.id, day: s.day, saved_at: s.savedAt });
+
+export const saveFromRow = (row: StreakSaveRow): StreakSave => ({
+  id: row.id,
+  day: row.day,
+  savedAt: new Date(row.saved_at).toISOString(),
+  syncedAt: row.uploaded_at ?? new Date().toISOString(),
+});
+
+export type StreakSaveApi = {
+  /** Insert rows, ignoring ids the server already has. */
+  upload(rows: StreakSaveRow[]): Promise<void>;
+  /** Every save of the player. There are at most a few a month, so no paging or cursor. */
+  pullAll(): Promise<StreakSaveRow[]>;
+};
+
+/** Same idea as results: upload what's new here, then take everything the server has. */
+export async function syncStreakSaves(
+  api: StreakSaveApi,
+  pending: readonly StreakSave[],
+): Promise<{ uploadedIds: string[]; downloaded: StreakSave[] }> {
+  if (pending.length > 0) await api.upload(pending.map(saveToRow));
+  const downloaded = (await api.pullAll()).map(saveFromRow);
+  return { uploadedIds: pending.map((s) => s.id), downloaded };
 }

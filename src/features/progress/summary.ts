@@ -4,7 +4,8 @@ import type { LevelInfo } from './level';
 import { scoreGame } from './scoring';
 import { computeStats, isPersonalBest, type Stats } from './stats';
 import { computeStreak, type StreakInfo } from './streak';
-import type { GameMode, GameResult } from './types';
+import { streakSaveOffer, type StreakSaveOffer } from './streakSave';
+import type { GameMode, GameResult, StreakSave } from './types';
 
 export type ProgressSummary = {
   /** Total XP across both modes. */
@@ -16,6 +17,8 @@ export type ProgressSummary = {
   badges: Badge[];
   /** Has today's daily puzzle been completed? (and its result if so) */
   todayDaily: GameResult | null;
+  /** Yesterday's missed daily can be saved by watching an ad (null when not on offer). */
+  streakSave: StreakSaveOffer | null;
 };
 
 /**
@@ -23,15 +26,22 @@ export type ProgressSummary = {
  * `todayKey` is the local date (weekly stats); `dailyKey` is today's daily
  * puzzle date (UTC), which streaks and "today's daily" follow.
  */
-export function computeProgress(results: readonly GameResult[], todayKey: string, themeCount: number, dailyKey: string = todayKey): ProgressSummary {
+export function computeProgress(
+  results: readonly GameResult[],
+  todayKey: string,
+  themeCount: number,
+  dailyKey: string = todayKey,
+  saves: readonly StreakSave[] = [],
+): ProgressSummary {
   const xp = results.reduce((sum, r) => sum + scoreGame(r), 0);
   return {
     xp,
     levels: levelsByMode(results),
-    streak: computeStreak(results, dailyKey),
+    streak: computeStreak(results, dailyKey, saves),
     stats: computeStats(results, todayKey),
     badges: computeBadges(results, themeCount),
     todayDaily: results.find((r) => r.isDaily && r.dailyDate === dailyKey) ?? null,
+    streakSave: streakSaveOffer(results, saves, dailyKey),
   };
 }
 
@@ -59,6 +69,7 @@ export function summarizeCompletion(
   /** Today's daily puzzle date (streaks follow it). */
   dailyKey: string,
   themeCount: number,
+  saves: readonly StreakSave[] = [],
 ): CompletionSummary {
   const before = history.filter((r) => r.id !== result.id);
   const after = [...before, result];
@@ -73,7 +84,7 @@ export function summarizeCompletion(
     level: levelAfter,
     isPersonalBest: isPersonalBest(result, before),
     newBadges: computeBadges(after, themeCount).filter((b) => b.earnedAt === result.completedAt),
-    streak: computeStreak(after, dailyKey),
+    streak: computeStreak(after, dailyKey, saves),
     puzzlesSolved: after.length,
   };
 }

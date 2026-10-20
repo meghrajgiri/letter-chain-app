@@ -13,6 +13,8 @@ export type AppSettings = {
   tutorialsSeen: { classic: boolean; chain: boolean };
   /** Guest sign-in reminders are snoozed until this many puzzles are solved. */
   signInSnoozeUntil: number;
+  /** Missed day whose "save your streak" offer the player dismissed (hidden for that day only). */
+  streakSaveDismissed: string | null;
 };
 
 export const DEFAULT_SETTINGS: AppSettings = {
@@ -24,6 +26,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   reminderMinute: 0,
   tutorialsSeen: { classic: false, chain: false },
   signInSnoozeUntil: 0,
+  streakSaveDismissed: null,
 };
 
 export const SETTINGS_KEY = 'app';

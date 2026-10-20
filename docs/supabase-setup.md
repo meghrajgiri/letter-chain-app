@@ -9,7 +9,8 @@ Never put the Supabase **secret / service_role key** or the **database password*
 
 1. Supabase dashboard → **SQL Editor** → **New query**.
 2. Paste the whole of [`supabase/migrations/20261005000000_init.sql`](../supabase/migrations/20261005000000_init.sql) and click **Run**.
-3. Check **Table Editor**: `profiles` and `game_results` exist, each with a shield icon (RLS on).
+3. Run [`supabase/migrations/20261020000000_streak_saves.sql`](../supabase/migrations/20261020000000_streak_saves.sql) the same way (streak saves).
+4. Check **Table Editor**: `profiles`, `game_results` and `streak_saves` exist, each with a shield icon (RLS on).
 
 The script is safe to run again.
 

@@ -5,7 +5,7 @@ import { AppState } from 'react-native';
 import { supabase, supabaseConfigured } from '@/lib/supabase';
 import { useProgress } from '../progress/ProgressProvider';
 import { getGoogleIdToken, googleSignOut } from './googleSignIn';
-import { syncResults, type ResultRow, type SyncApi } from './sync';
+import { syncResults, syncStreakSaves, type ResultRow, type StreakSaveApi, type StreakSaveRow, type SyncApi } from './sync';
 
 export type AccountUser = { id: string; email: string | null; name: string | null; avatarUrl: string | null };
 export type SyncState = 'idle' | 'syncing' | 'error';
@@ -60,6 +60,22 @@ function serverApi(userId: string): SyncApi {
   };
 }
 
+function streakSaveApi(userId: string): StreakSaveApi {
+  return {
+    async upload(rows) {
+      const { error } = await supabase
+        .from('streak_saves')
+        .upsert(rows.map((r) => ({ ...r, user_id: userId })), { onConflict: 'id', ignoreDuplicates: true });
+      if (error) throw error;
+    },
+    async pullAll() {
+      const { data, error } = await supabase.from('streak_saves').select('id, day, saved_at, uploaded_at').eq('user_id', userId).order('saved_at');
+      if (error) throw error;
+      return (data ?? []) as StreakSaveRow[];
+    },
+  };
+}
+
 const cursorKey = (userId: string) => `sync.cursor.${userId}`;
 
 /**
@@ -105,6 +121,8 @@ export function AccountProvider({ children }: { children: ReactNode }) {
         const syncedAt = new Date().toISOString();
         await sync.apply({ uploadedIds: outcome.uploadedIds, downloaded: outcome.downloaded, syncedAt });
         if (outcome.cursor) await sync.writeValue(cursorKey(user.id), outcome.cursor);
+        const saves = await syncStreakSaves(streakSaveApi(user.id), sync.pendingSaves());
+        await sync.applySaves({ ...saves, syncedAt });
         setLastSyncedAt(syncedAt);
       } while (again.current);
       setSyncState('idle');
@@ -118,7 +136,8 @@ export function AccountProvider({ children }: { children: ReactNode }) {
 
   // Sync when signed in (also right after sign-in), whenever new games are
   // waiting, and when the app comes back to the foreground.
-  const pendingCount = results.filter((r) => !r.syncedAt).length;
+  const { streakSaves } = progress;
+  const pendingCount = results.filter((r) => !r.syncedAt).length + streakSaves.filter((s) => !s.syncedAt).length;
   useEffect(() => {
     if (!user || !ready) return;
     // Short debounce: several changes in a row (e.g. sign-in + restored games) sync once.

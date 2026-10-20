@@ -4,7 +4,7 @@
  */
 import * as SQLite from 'expo-sqlite';
 
-import type { GameResult } from '../types';
+import type { GameResult, StreakSave } from '../types';
 import type { ProgressStore, WordHistoryEntry } from './types';
 
 const DB_NAME = 'letterchain.db';
@@ -35,6 +35,13 @@ const MIGRATIONS: string[] = [
      played_at TEXT NOT NULL
    );
    CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY NOT NULL, value TEXT NOT NULL);`,
+  // v2: missed dailies saved by watching an ad (append-only, synced like results).
+  `CREATE TABLE IF NOT EXISTS streak_saves (
+     id TEXT PRIMARY KEY NOT NULL,
+     day TEXT NOT NULL,
+     saved_at TEXT NOT NULL,
+     synced_at TEXT
+   );`,
 ];
 
 async function migrate(db: SQLite.SQLiteDatabase): Promise<void> {
@@ -84,6 +91,10 @@ const fromRow = (r: ResultRow): GameResult => ({
   syncedAt: r.synced_at,
 });
 
+type SaveRow = { id: string; day: string; saved_at: string; synced_at: string | null };
+
+const saveFromRow = (r: SaveRow): StreakSave => ({ id: r.id, day: r.day, savedAt: r.saved_at, syncedAt: r.synced_at });
+
 export async function openProgressStore(): Promise<ProgressStore> {
   const db = await SQLite.openDatabaseAsync(DB_NAME);
   await migrate(db);
@@ -128,11 +139,26 @@ export async function openProgressStore(): Promise<ProgressStore> {
         for (const id of ids) await db.runAsync('UPDATE game_results SET synced_at = ? WHERE id = ?', [syncedAt, id]);
       });
     },
+    async loadStreakSaves() {
+      const rows = await db.getAllAsync<SaveRow>('SELECT * FROM streak_saves ORDER BY saved_at');
+      return rows.map(saveFromRow);
+    },
+    async addStreakSave(s) {
+      await db.runAsync('INSERT OR IGNORE INTO streak_saves (id, day, saved_at, synced_at) VALUES (?, ?, ?, ?)', [s.id, s.day, s.savedAt, s.syncedAt ?? null]);
+    },
+    async markStreakSavesSynced(ids, syncedAt) {
+      if (ids.length === 0) return;
+      await db.withTransactionAsync(async () => {
+        for (const id of ids) await db.runAsync('UPDATE streak_saves SET synced_at = ? WHERE id = ?', [syncedAt, id]);
+      });
+    },
     async deleteSyncedResults() {
       await db.runAsync('DELETE FROM game_results WHERE synced_at IS NOT NULL');
+      await db.runAsync('DELETE FROM streak_saves WHERE synced_at IS NOT NULL');
     },
     async deleteAllResults() {
       await db.runAsync('DELETE FROM game_results');
+      await db.runAsync('DELETE FROM streak_saves');
     },
     async getSetting(key) {
       const row = await db.getFirstAsync<{ value: string }>('SELECT value FROM settings WHERE key = ?', [key]);
