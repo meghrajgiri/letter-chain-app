@@ -1,6 +1,10 @@
 /** Player settings, stored on the device (settings table, key "app"). */
 export type AppSettings = {
   haptics: boolean;
+  /** Sound effects (found, hint, complete…). */
+  sound: boolean;
+  /** Background music loop. */
+  music: boolean;
   reminderEnabled: boolean;
   /** Local time of the daily reminder. */
   reminderHour: number;
@@ -13,6 +17,8 @@ export type AppSettings = {
 
 export const DEFAULT_SETTINGS: AppSettings = {
   haptics: true,
+  sound: true,
+  music: true,
   reminderEnabled: false,
   reminderHour: 19,
   reminderMinute: 0,

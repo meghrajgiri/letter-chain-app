@@ -16,7 +16,7 @@ import { buildShareText, pointsPerWord, type CompletionSummary, type GameResult 
 import { shareText } from '@/features/progress/shareResult';
 import { SHARE_URL } from '@/config/app';
 import { SignInPrompt } from '@/features/account/SignInPrompt';
-import { haptic } from '@/features/feedback/haptics';
+import { playFeedback } from '@/features/feedback/feedback';
 import { useProgress } from '@/features/progress/ProgressProvider';
 import { TutorialSheet } from '@/features/tutorial/TutorialSheet';
 import { CompletionView } from '@/features/puzzle/components/CompletionView';
@@ -125,7 +125,7 @@ export function ChainPuzzleScreen({ theme, difficulty, seed: initialSeed, avoidW
   const ads = useAds();
   const finishGame = useCallback(() => {
     const durationMs = Math.max(1, stopTimer());
-    haptic('complete');
+    playFeedback('complete');
     ads.recordGameFinished(mode === 'daily');
     const { completion: done, result } = recordGame({
       mode: 'chain',
@@ -144,12 +144,12 @@ export function ChainPuzzleScreen({ theme, difficulty, seed: initialSeed, avoidW
   const report = useCallback(
     (result: ChainMatch) => {
       if (result.type === 'found') {
-        haptic('found');
+        playFeedback('found');
         showFeedback({ tone: 'found', text: `${result.word} +${pointsPerWord('chain', puzzle.difficulty)} pts` });
         announceFeedback(`Found ${result.word}`);
         if (found.length + 1 === puzzle.words.length) finishGame();
       } else if (result.type === 'wrong-path') {
-        haptic('warning');
+        playFeedback('warning');
         showFeedback({ tone: 'info', text: `${result.word} is right, but not that path` });
         announceFeedback(`${result.word} is right, but not that path`);
       } else if (result.type === 'already-found') showFeedback({ tone: 'info', text: `${result.word} already found` });
@@ -180,7 +180,7 @@ export function ChainPuzzleScreen({ theme, difficulty, seed: initialSeed, avoidW
         return;
       }
       if (tap.path === tapPath) return; // tapped a found letter
-      haptic('select');
+      playFeedback('select');
       setTapState({ puzzleId: puzzle.id, path: tap.path });
       announceFeedback(
         tap.path.length === 0 ? 'Path cleared' : `${tap.path.map((c) => puzzle.grid[c.row][c.col]).join(' ')}. Tap the next letter.`,
@@ -196,7 +196,7 @@ export function ChainPuzzleScreen({ theme, difficulty, seed: initialSeed, avoidW
     tile: layout.tile,
     enabled: !isComplete && !paused && !tutorialOpen,
     isBlocked,
-    onSelectionStart: () => haptic('select'),
+    onSelectionStart: () => playFeedback('select'),
     onSelectionEnd: handlePath,
     onTap: handleTap,
   });
@@ -224,6 +224,7 @@ export function ChainPuzzleScreen({ theme, difficulty, seed: initialSeed, avoidW
     const word = revealHint();
     // The hint itself stays pinned above the board (see pinnedHint) until the word is found.
     if (word) {
+      playFeedback('hint');
       announceFeedback(`Hint: ${word} starts at the yellow ring`);
     } else toast.show(hintsLeft === 0 ? 'No hints left for this puzzle' : 'Every word is already revealed');
   }, [revealHint, toast, hintsLeft]);

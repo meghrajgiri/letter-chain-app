@@ -15,6 +15,7 @@ import { APP_NAME, DELETE_ACCOUNT_URL, PRIVACY_URL, SUPPORT_EMAIL } from '@/conf
 import { useAccount } from '@/features/account/AccountProvider';
 import { useAds } from '@/features/ads/AdsProvider';
 import { haptic } from '@/features/feedback/haptics';
+import { playSound } from '@/features/feedback/sounds';
 import { useProgress } from '@/features/progress/ProgressProvider';
 import { requestReminderPermission } from '@/features/reminders/reminders';
 import { formatReminderTime } from '@/features/reminders/schedule';
@@ -242,6 +243,23 @@ export function ProfileScreen() {
         )}
 
         <Section title="Gameplay">
+          <ToggleRow
+            icon="volume-up"
+            label="Sound effects"
+            detail="Chimes when you find words and finish puzzles"
+            value={settings.sound}
+            onChange={(v) => {
+              updateSettings({ sound: v });
+              if (v) playSound('found');
+            }}
+          />
+          <ToggleRow
+            icon="music-note"
+            label="Music"
+            detail="Calm background music while you play"
+            value={settings.music}
+            onChange={(v) => updateSettings({ music: v })}
+          />
           <ToggleRow
             icon="vibration"
             label="Haptics"

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useLayoutEffect, useRef } from 'react';
 import { useRewardedAd } from 'react-native-google-mobile-ads';
 
+import { holdMusic } from '../feedback/music';
 import { AD_UNITS, useAds } from './AdsProvider';
 
 type Options = {
@@ -38,9 +39,14 @@ export function useRewardedHint({ enabled, onReward, onClosed }: Options): { ava
   // After it closes (or fails to show), tell the screen and get the next ad ready.
   // `show()` is press-safe: failures arrive as status 'error', never as a throw.
   const showing = useRef(false);
+  // The ad has its own audio, so the music waits until it closes (or the screen goes away).
+  const releaseMusic = useRef<(() => void) | null>(null);
+  useEffect(() => () => releaseMusic.current?.(), []);
   useEffect(() => {
     if (status === 'closed' || (status === 'error' && showing.current)) {
       showing.current = false;
+      releaseMusic.current?.();
+      releaseMusic.current = null;
       latest.current.onClosed?.();
       if (active) load();
     }
@@ -48,6 +54,7 @@ export function useRewardedHint({ enabled, onReward, onClosed }: Options): { ava
 
   const showAd = useCallback(() => {
     showing.current = true;
+    releaseMusic.current ??= holdMusic();
     show();
   }, [show]);
 

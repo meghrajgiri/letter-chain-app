@@ -5,6 +5,8 @@ import { AppState } from 'react-native';
 
 import { dailyKey as dailyKeyFor } from '../daily/daily';
 import { setHapticsEnabled } from '../feedback/haptics';
+import { setMusicEnabled } from '../feedback/music';
+import { setSoundEnabled } from '../feedback/sounds';
 import { THEMES } from '../puzzle/data/themes';
 import { DEFAULT_HISTORY_SIZE, wordHistory } from '../puzzle/game/wordHistory';
 import { DEFAULT_SETTINGS, parseSettings, SETTINGS_KEY, type AppSettings } from '../settings/settings';
@@ -47,6 +49,13 @@ export function useProgress(): ProgressApi {
 }
 
 const dateKeys = (now: Date) => `${localDateKey(now)}|${dailyKeyFor(now)}`;
+
+/** Haptics, sound effects and music read their switches from module state, not React. */
+function applyFeedbackSettings(settings: AppSettings) {
+  setHapticsEnabled(settings.haptics);
+  setSoundEnabled(settings.sound);
+  setMusicEnabled(settings.music);
+}
 
 /**
  * Local date and daily (UTC) date keys, refreshed every minute and when the
@@ -93,7 +102,7 @@ export function ProgressProvider({ children }: { children: ReactNode }) {
         const loadedSettings = parseSettings(rawSettings);
         settingsRef.current = loadedSettings;
         setSettings(loadedSettings);
-        setHapticsEnabled(loadedSettings.haptics);
+        applyFeedbackSettings(loadedSettings);
         // Restore recent words before listening, so restoring isn't saved again.
         for (const entry of history) wordHistory.record(entry.theme, entry.puzzleId, entry.words);
         unsubscribe = wordHistory.subscribe((theme, puzzleId, words) => {
@@ -105,6 +114,7 @@ export function ProgressProvider({ children }: { children: ReactNode }) {
       } catch (error) {
         // Storage unavailable: play still works, progress lives in memory for this session.
         console.warn('Progress storage unavailable', error);
+        if (!cancelled) applyFeedbackSettings(DEFAULT_SETTINGS);
       } finally {
         if (!cancelled) setReady(true);
       }
@@ -136,7 +146,7 @@ export function ProgressProvider({ children }: { children: ReactNode }) {
     const next = { ...settingsRef.current, ...patch };
     settingsRef.current = next;
     setSettings(next);
-    setHapticsEnabled(next.haptics);
+    applyFeedbackSettings(next);
     store.current?.setSetting(SETTINGS_KEY, JSON.stringify(next)).catch((error) => console.warn('Could not save settings', error));
   }, []);
 
