@@ -1,3 +1,6 @@
-import { PlayMenuScreen } from '@/screens/PlayMenuScreen';
+import { Redirect } from 'expo-router';
 
-export default PlayMenuScreen;
+/** The mode picker tab is gone: Home's mode tiles start games directly. Old links land on the lobby. */
+export default function PlayRoute() {
+  return <Redirect href="/" />;
+}

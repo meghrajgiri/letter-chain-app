@@ -25,7 +25,7 @@ const styles = StyleSheet.create({
   overlay: {
     ...StyleSheet.absoluteFill,
     backgroundColor: colors.surface,
-    borderRadius: radius.xl,
+    borderRadius: radius.xxl - 1,
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,

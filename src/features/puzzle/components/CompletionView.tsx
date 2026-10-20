@@ -4,8 +4,9 @@ import { Animated, Pressable, ScrollView, StyleSheet, View } from 'react-native'
 import { AppText } from '@/components/ui/AppText';
 import { Button } from '@/components/ui/Button';
 import { Icon, type IconName } from '@/components/ui/Icon';
+import { Pop } from '@/components/ui/Pop';
 import { difficultyForLevel, levelForXp, type CompletionSummary, type GameMode } from '@/features/progress';
-import { colors, radius, shadows, spacing } from '@/theme/tokens';
+import { LIP, colors, radius, shadows, spacing } from '@/theme/tokens';
 import { useReduceMotion } from '@/lib/useReduceMotion';
 import { formatElapsed } from '../hooks/usePuzzleTimer';
 
@@ -36,6 +37,28 @@ const CONFETTI = [
   { top: 56, right: 92, size: 10, color: colors.yellow, round: true },
   { top: 64, right: 36, size: 13, color: colors.greenInk, round: false },
 ] as const;
+
+/** 3 stars for a clean solve, 2 with one hint, 1 otherwise: the classic end-of-level rating. */
+export function starsForHints(hintsUsed: number): number {
+  return hintsUsed === 0 ? 3 : hintsUsed === 1 ? 2 : 1;
+}
+
+function StarRow({ stars }: { stars: number }) {
+  return (
+    <View style={styles.stars} accessibilityLabel={`${stars} of 3 stars`}>
+      {[0, 1, 2].map((i) => {
+        const lit = i < stars;
+        return (
+          <Pop key={i} delay={220 + i * 140} style={[styles.starSlot, i === 1 && styles.starMiddle]}>
+            <View style={[styles.star, lit ? styles.starLit : styles.starDim]}>
+              <Icon name="star" size={i === 1 ? 34 : 28} color={lit ? colors.yellowInk : colors.inkSubtle} />
+            </View>
+          </Pop>
+        );
+      })}
+    </View>
+  );
+}
 
 function StatTile({ icon, label, value, note, noteColor }: { icon: IconName; label: string; value: string; note: string; noteColor: string }) {
   return (
@@ -102,13 +125,14 @@ export function CompletionView({
           />
         ))}
         <Animated.View style={[styles.badge, { transform: [{ scale: appear }] }]}>
-          <AppText style={styles.badgeEmoji}>🎉</AppText>
+          <AppText style={styles.badgeEmoji}>{completion?.isPersonalBest ? '🏆' : '🎉'}</AppText>
           <View style={styles.perfect}>
             <Icon name="star" size={14} color={colors.ink} />
             <AppText variant="labelBadge">{tag}</AppText>
           </View>
         </Animated.View>
       </View>
+      <StarRow stars={starsForHints(hintsUsed)} />
 
       <View style={styles.titleBlock}>
         <AppText variant="headlineLg" style={styles.center} accessibilityRole="header">
@@ -124,13 +148,12 @@ export function CompletionView({
 
       <View style={styles.card}>
         <View style={styles.cardHeader}>
-          <AppText variant="labelMd" color={colors.inkMuted} style={styles.upper}>
-            Game overview
+          <AppText variant="headlineSm" style={styles.cardTitle}>
+            Your results
           </AppText>
-          <View style={styles.verified}>
-            <Icon name="verified" size={18} color={colors.greenInk} />
-            <AppText variant="labelMd" color={colors.greenInk}>
-              Saved
+          <View style={styles.modeTag}>
+            <AppText variant="labelBadge" color={colors.primaryDark}>
+              {isDaily ? 'Daily' : modeName}
             </AppText>
           </View>
         </View>
@@ -250,16 +273,24 @@ export function CompletionView({
 
 const styles = StyleSheet.create({
   content: { paddingHorizontal: spacing.md, paddingBottom: spacing.xxl, gap: spacing.lg },
-  hero: { height: 132, alignItems: 'center', justifyContent: 'center' },
+  hero: { height: 128, alignItems: 'center', justifyContent: 'center' },
+  stars: { flexDirection: 'row', justifyContent: 'center', alignItems: 'flex-end', gap: 6, marginTop: -8 },
+  starSlot: { alignItems: 'center' },
+  starMiddle: { marginBottom: 10 },
+  star: { width: 52, height: 52, borderRadius: 26, alignItems: 'center', justifyContent: 'center', borderBottomWidth: LIP.sm },
+  starLit: { backgroundColor: colors.yellow, borderBottomColor: colors.yellowLip, boxShadow: shadows.yellowGlow },
+  starDim: { backgroundColor: colors.surfaceMuted, borderBottomColor: colors.lip },
   confetti: { position: 'absolute' },
   badge: {
-    width: 96,
-    height: 96,
-    borderRadius: 28,
+    width: 100,
+    height: 100,
+    borderRadius: 30,
     backgroundColor: colors.primarySoft,
     alignItems: 'center',
     justifyContent: 'center',
     boxShadow: shadows.raised,
+    borderBottomWidth: LIP.md,
+    borderBottomColor: colors.lipSoft,
   },
   badgeEmoji: { fontSize: 46, lineHeight: 56 },
   perfect: {
@@ -277,14 +308,14 @@ const styles = StyleSheet.create({
   titleBlock: { gap: 6, marginTop: -4 },
   center: { textAlign: 'center' },
   bold: { fontFamily: 'PlusJakartaSans_800ExtraBold', color: colors.ink },
-  card: { backgroundColor: colors.surface, borderRadius: radius.xxl, padding: spacing.md, gap: 14, boxShadow: shadows.card },
+  card: { backgroundColor: colors.surface, borderRadius: radius.xxl, padding: spacing.md, gap: 14, boxShadow: shadows.card, borderBottomWidth: LIP.md, borderBottomColor: colors.lip },
   cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  upper: { textTransform: 'uppercase', letterSpacing: 0.8 },
-  verified: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  cardTitle: { fontSize: 18, lineHeight: 24 },
+  modeTag: { backgroundColor: colors.primarySoft, borderRadius: radius.pill, paddingHorizontal: 10, paddingVertical: 4 },
   statGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
-  statTile: { flexBasis: '47%', flexGrow: 1, backgroundColor: colors.surfaceLow, borderRadius: radius.lg, padding: 14, gap: 2 },
+  statTile: { flexBasis: '47%', flexGrow: 1, backgroundColor: colors.surfaceLow, borderRadius: radius.lg, padding: 14, gap: 2, borderBottomWidth: LIP.sm, borderBottomColor: colors.lipSoft },
   statLabel: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 2 },
-  streakCard: { backgroundColor: '#FFE7A1', borderRadius: radius.xxl, padding: spacing.md, gap: 14, boxShadow: shadows.yellowGlow },
+  streakCard: { backgroundColor: '#FFE7A1', borderRadius: radius.xxl, padding: spacing.md, gap: 14, boxShadow: shadows.yellowGlow, borderBottomWidth: LIP.md, borderBottomColor: colors.yellow },
   streakTop: { flexDirection: 'row', gap: 14, alignItems: 'center' },
   flameBox: { width: 56, height: 56, borderRadius: radius.lg, backgroundColor: colors.yellow, alignItems: 'center', justifyContent: 'center' },
   flame: { fontSize: 28, lineHeight: 34 },
@@ -304,10 +335,10 @@ const styles = StyleSheet.create({
   dayDone: { backgroundColor: colors.greenInk },
   dayToday: { backgroundColor: colors.primary },
   dayEmpty: { backgroundColor: colors.surfaceMuted },
-  mastery: { flexDirection: 'row', alignItems: 'center', gap: 14, backgroundColor: colors.surfaceLow, borderRadius: radius.xl, padding: spacing.md },
+  mastery: { flexDirection: 'row', alignItems: 'center', gap: 14, backgroundColor: colors.surface, borderRadius: radius.xl, padding: spacing.md, borderBottomWidth: LIP.md, borderBottomColor: colors.lip, boxShadow: shadows.card },
   masteryIcon: { width: 52, height: 52, borderRadius: radius.md, backgroundColor: colors.primarySoft, alignItems: 'center', justifyContent: 'center' },
   levelBlock: { gap: 6, marginTop: 4 },
-  track: { height: 8, borderRadius: 4, backgroundColor: colors.surface, overflow: 'hidden' },
+  track: { height: 8, borderRadius: 4, backgroundColor: colors.surfaceMuted, overflow: 'hidden' },
   trackFill: { height: '100%', borderRadius: 4, backgroundColor: colors.primary },
   flex1: { flex: 1 },
   bar: {

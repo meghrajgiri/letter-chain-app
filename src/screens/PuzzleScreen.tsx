@@ -25,7 +25,8 @@ import { getCellsBetween } from '@/features/puzzle/engine/getCellsBetween';
 import { randomSeed } from '@/features/puzzle/engine/random';
 import type { Cell, Difficulty, Puzzle } from '@/features/puzzle/engine/types';
 import { readCells, resolveTap } from '@/features/puzzle/game/selection';
-import { getTileLayout } from '@/features/puzzle/game/tileLayout';
+import { latestOpenHint } from '@/features/puzzle/game/hints';
+import { boardSizeFor, getTileLayout } from '@/features/puzzle/game/tileLayout';
 import { wordHistory } from '@/features/puzzle/game/wordHistory';
 import { usePuzzle } from '@/features/puzzle/hooks/usePuzzle';
 import { usePuzzleSelection, type Selection } from '@/features/puzzle/hooks/usePuzzleSelection';
@@ -36,7 +37,7 @@ import { canOfferAdHint } from '@/features/ads/adPolicy';
 import { useAds } from '@/features/ads/AdsProvider';
 import { useInterstitialBreak } from '@/features/ads/useInterstitialBreak';
 import { useRewardedHint } from '@/features/ads/useRewardedHint';
-import { colors, radius, shadows, spacing } from '@/theme/tokens';
+import { LIP, colors, radius, shadows, spacing } from '@/theme/tokens';
 
 export type PuzzleMode = 'free' | 'daily';
 
@@ -73,7 +74,7 @@ export function PuzzleScreen({ theme, difficulty, mode = 'free', seed: initialSe
   const [game] = useState(() =>
     initialSeed !== undefined ? { seed: initialSeed, avoidWords: avoidWords ?? [] } : nextGame(theme),
   );
-  const { puzzle, found, hinted, hintCells, hintsUsed, hintsLeft, adHints, addAdHint, submitSelection, revealHint, revealWord, isComplete } = usePuzzle({
+  const { puzzle, found, foundWords, hinted, hintCells, hintsUsed, hintsLeft, adHints, addAdHint, submitSelection, revealHint, revealWord, isComplete } = usePuzzle({
     theme,
     difficulty,
     gridSize,
@@ -108,7 +109,7 @@ export function PuzzleScreen({ theme, difficulty, mode = 'free', seed: initialSe
   // short screen can't fit everything, the page scrolls (never while dragging).
   const { width: windowWidth, height: windowHeight } = useWindowDimensions();
   const compact = windowHeight < 700;
-  const boardSize = Math.min(windowWidth - PADDING * 2, MAX_BOARD);
+  const boardSize = boardSizeFor(windowWidth, windowHeight, PADDING, MAX_BOARD);
   const tileLayout = getTileLayout(puzzle.gridSize, boardSize - BOARD_CHROME);
 
   const [feedback, setFeedback] = useState<SelectionFeedback>(null);
@@ -202,9 +203,10 @@ export function PuzzleScreen({ theme, difficulty, mode = 'free', seed: initialSe
 
   const hint = useCallback(() => {
     const word = revealHint();
-    if (word) showFeedback({ tone: 'info', text: `${word} starts at the ring` });
+    // The hint itself stays pinned above the board (see pinnedHint) until the word is found.
+    if (word) announceFeedback(`Hint: ${word} starts at the yellow ring`);
     else toast.show(hintsLeft < 1 ? 'No hints left for this puzzle' : 'Every remaining word is already hinted');
-  }, [revealHint, showFeedback, toast, hintsLeft]);
+  }, [revealHint, toast, hintsLeft]);
 
   const reveal = useCallback(() => {
     const revealed = revealWord();
@@ -278,6 +280,8 @@ export function PuzzleScreen({ theme, difficulty, mode = 'free', seed: initialSe
   const shownSelection = isLine || !anchor ? selection : { start: anchor, end: anchor };
   const selectionCells = selection ? getCellsBetween(selection.start, selection.end) : null;
   const selectionText = selectionCells && selectionCells.length > 1 ? readCells(puzzle.grid, selectionCells) : '';
+  // The latest hint whose word is still unfound stays on screen until it's found.
+  const pinnedHint = latestOpenHint(hinted, foundWords);
   const themeConfig = getTheme(puzzle.theme);
   const difficultyLabel = puzzle.difficulty[0].toUpperCase() + puzzle.difficulty.slice(1);
   const header = (
@@ -349,10 +353,13 @@ export function PuzzleScreen({ theme, difficulty, mode = 'free', seed: initialSe
           hint={
             anchor
               ? `${puzzle.grid[anchor.row][anchor.col]} selected — now tap the word’s last letter`
-              : found.length === 0
-                ? 'Drag across a word, or tap its first and last letters'
-                : ' '
+              : pinnedHint
+                ? `${pinnedHint} starts at the yellow ring`
+                : found.length === 0
+                  ? 'Drag across a word, or tap its first and last letters'
+                  : ' '
           }
+          hintTone={!anchor && pinnedHint ? 'hint' : 'idle'}
         />
 
         <View style={[styles.board, { width: boardSize }]}>
@@ -418,9 +425,13 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
     alignItems: 'center',
     backgroundColor: colors.surface,
-    borderRadius: radius.xl,
+    borderRadius: radius.xxl,
+    // Chunky bottom edge: the board reads as a physical game tile. The side
+    // borders stay 1px so the lip is the only change to the tile maths.
     borderWidth: 1,
     borderColor: colors.border,
+    borderBottomWidth: LIP.lg,
+    borderBottomColor: colors.lip,
     padding: BOARD_PADDING,
     boxShadow: shadows.card,
   },

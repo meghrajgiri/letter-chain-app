@@ -63,11 +63,11 @@ function AppShell() {
               contentStyle: { backgroundColor: colors.background },
             }}
           >
+            {/* The lobby group: Home plus the Trophies and Profile screens pushed over it, each with its own header. */}
             <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
             <Stack.Screen name="puzzle" options={{ headerShown: false, gestureEnabled: false }} />
             <Stack.Screen name="chain" options={{ headerShown: false, gestureEnabled: false }} />
             <Stack.Screen name="studio" options={{ title: 'Puzzle Studio' }} />
-            <Stack.Screen name="settings" options={{ title: 'Settings' }} />
           </Stack>
         </ToastProvider>
       </AdsProvider>

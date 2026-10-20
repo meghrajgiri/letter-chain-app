@@ -1,14 +1,16 @@
 import { memo, type ReactNode } from 'react';
 import { Pressable, StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
 
-import { colors, radius, spacing } from '@/theme/tokens';
+import { LIP, colors, radius, spacing } from '@/theme/tokens';
 import { AppText } from './AppText';
 import { Icon, type IconName } from './Icon';
+
+type Variant = 'primary' | 'secondary' | 'ghost' | 'white' | 'yellow' | 'green';
 
 type Props = {
   label: string;
   onPress: () => void;
-  variant?: 'primary' | 'secondary' | 'ghost' | 'white';
+  variant?: Variant;
   size?: 'lg' | 'md' | 'sm';
   icon?: IconName;
   iconPosition?: 'left' | 'right';
@@ -19,11 +21,19 @@ type Props = {
   accessibilityHint?: string;
 };
 
-const LIP = 3;
+/** Face, bottom lip and text colour for each variant. */
+const LOOK: Record<Variant, { bg: string; lip: string; ink: string; pressedBg?: string }> = {
+  primary: { bg: colors.primary, lip: colors.primaryDark, ink: colors.primaryInk, pressedBg: colors.primaryPressed },
+  secondary: { bg: colors.primarySoft, lip: colors.lipSoft, ink: colors.primaryDark },
+  white: { bg: colors.surface, lip: colors.lip, ink: colors.primaryDark },
+  yellow: { bg: colors.yellow, lip: colors.yellowLip, ink: colors.ink },
+  green: { bg: colors.green, lip: colors.greenLip, ink: colors.primaryInk },
+  ghost: { bg: 'transparent', lip: 'transparent', ink: colors.primary },
+};
 
 /**
- * Pill button. The primary variant has the design's tactile bottom lip that
- * collapses (and shifts the content down) while pressed.
+ * Chunky pill button. Every solid variant stands on a tactile bottom lip that
+ * collapses (and drops the face) while pressed, so taps feel physical.
  */
 export const Button = memo(function Button({
   label,
@@ -37,10 +47,10 @@ export const Button = memo(function Button({
   style,
   accessibilityHint,
 }: Props) {
-  const ink =
-    variant === 'primary' ? colors.primaryInk : variant === 'white' ? colors.primaryDark : colors.primary;
-  const iconNode = icon ? <Icon name={icon} size={size === 'sm' ? 18 : 22} color={ink} /> : null;
-  const height = size === 'lg' ? 56 : size === 'md' ? 48 : 44;
+  const look = LOOK[variant];
+  const lip = variant === 'ghost' ? 0 : size === 'lg' ? LIP.lg : LIP.md;
+  const iconNode = icon ? <Icon name={icon} size={size === 'sm' ? 18 : 22} color={look.ink} /> : null;
+  const height = size === 'lg' ? 58 : size === 'md' ? 50 : 44;
 
   return (
     <Pressable
@@ -56,20 +66,15 @@ export const Button = memo(function Button({
         <View
           style={[
             styles.base,
-            { minHeight: height },
+            { minHeight: height, backgroundColor: look.bg, borderBottomColor: look.lip, borderBottomWidth: lip },
             size === 'sm' && styles.small,
-            variant === 'primary' && [
-              styles.primary,
-              pressed ? { borderBottomWidth: 0, marginTop: LIP, backgroundColor: colors.primaryPressed } : null,
-            ],
-            variant === 'secondary' && [styles.secondary, pressed && styles.secondaryPressed],
-            variant === 'ghost' && pressed && styles.secondaryPressed,
-            variant === 'white' && [styles.white, pressed && styles.secondaryPressed],
+            pressed && variant !== 'ghost' && { borderBottomWidth: 0, minHeight: height - lip, marginTop: lip, backgroundColor: look.pressedBg ?? look.bg, opacity: 0.92 },
+            pressed && variant === 'ghost' && styles.ghostPressed,
             disabled && styles.disabled,
           ]}
         >
           {iconPosition === 'left' && iconNode}
-          <AppText variant={size === 'sm' ? 'labelMd' : 'labelLg'} color={ink} style={size === 'lg' && styles.largeLabel}>
+          <AppText variant={size === 'sm' ? 'labelMd' : 'labelLg'} color={look.ink} style={size === 'lg' && styles.largeLabel}>
             {label}
           </AppText>
           {iconPosition === 'right' && iconNode}
@@ -90,14 +95,7 @@ const styles = StyleSheet.create({
     borderRadius: radius.pill,
   },
   small: { paddingHorizontal: spacing.md },
-  primary: {
-    backgroundColor: colors.primary,
-    borderBottomWidth: LIP,
-    borderBottomColor: colors.primaryDark,
-  },
-  secondary: { backgroundColor: colors.primarySoft },
-  secondaryPressed: { opacity: 0.75 },
-  white: { backgroundColor: colors.surface },
+  ghostPressed: { opacity: 0.6 },
   disabled: { opacity: 0.45 },
   largeLabel: { fontSize: 17 },
 });

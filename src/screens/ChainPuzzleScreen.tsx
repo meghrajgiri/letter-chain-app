@@ -27,7 +27,8 @@ import { getTheme } from '@/features/puzzle/data/themes';
 import { cellKey } from '@/features/puzzle/engine/gridScan';
 import { randomSeed } from '@/features/puzzle/engine/random';
 import type { Cell } from '@/features/puzzle/engine/types';
-import { getTileLayout } from '@/features/puzzle/game/tileLayout';
+import { latestOpenHint } from '@/features/puzzle/game/hints';
+import { boardSizeFor, getTileLayout } from '@/features/puzzle/game/tileLayout';
 import { wordHistory } from '@/features/puzzle/game/wordHistory';
 import { usePuzzleTimer } from '@/features/puzzle/hooks/usePuzzleTimer';
 import { announceFeedback, useScreenReader } from '@/lib/useScreenReader';
@@ -36,7 +37,7 @@ import { canOfferAdHint } from '@/features/ads/adPolicy';
 import { useAds } from '@/features/ads/AdsProvider';
 import { useInterstitialBreak } from '@/features/ads/useInterstitialBreak';
 import { useRewardedHint } from '@/features/ads/useRewardedHint';
-import { colors, radius, shadows, spacing } from '@/theme/tokens';
+import { LIP, colors, radius, shadows, spacing } from '@/theme/tokens';
 
 type Props = {
   theme: string;
@@ -103,7 +104,7 @@ export function ChainPuzzleScreen({ theme, difficulty, seed: initialSeed, avoidW
   const { width: windowWidth, height: windowHeight } = useWindowDimensions();
   const compact = windowHeight < 700;
   const n = Math.max(puzzle.rows, puzzle.cols);
-  const boardSize = Math.min(windowWidth - PADDING * 2, MAX_BOARD);
+  const boardSize = boardSizeFor(windowWidth, windowHeight, PADDING, MAX_BOARD);
   const layout = getTileLayout(n, boardSize - BOARD_CHROME, chainGap(n));
 
   const [feedback, setFeedback] = useState<SelectionFeedback>(null);
@@ -221,10 +222,11 @@ export function ChainPuzzleScreen({ theme, difficulty, seed: initialSeed, avoidW
 
   const hint = useCallback(() => {
     const word = revealHint();
+    // The hint itself stays pinned above the board (see pinnedHint) until the word is found.
     if (word) {
-      showFeedback({ tone: 'info', text: `${word} starts at the ring` });
+      announceFeedback(`Hint: ${word} starts at the yellow ring`);
     } else toast.show(hintsLeft === 0 ? 'No hints left for this puzzle' : 'Every word is already revealed');
-  }, [revealHint, showFeedback, toast, hintsLeft]);
+  }, [revealHint, toast, hintsLeft]);
 
   // Out of hints: offer one more for watching a rewarded ad. The clock pauses while it plays.
   const rewardedHint = useRewardedHint({
@@ -255,6 +257,8 @@ export function ChainPuzzleScreen({ theme, difficulty, seed: initialSeed, avoidW
   // A live drag wins; otherwise show the tap path (a press on one cell is still just a tap).
   const shownPath = path.length > 1 || tapPath.length === 0 ? path : tapPath;
   const selectionText = shownPath.length > 1 ? shownPath.map((c) => puzzle.grid[c.row][c.col]).join('') : '';
+  // The latest hint whose word is still unfound stays on screen until it's found.
+  const pinnedHint = latestOpenHint(hinted, foundWords);
   const themeConfig = getTheme(puzzle.theme);
 
   const difficultyLabel = difficulty[0].toUpperCase() + difficulty.slice(1);
@@ -321,10 +325,13 @@ export function ChainPuzzleScreen({ theme, difficulty, seed: initialSeed, avoidW
           hint={
             tapPath.length === 1
               ? `${puzzle.grid[tapPath[0].row][tapPath[0].col]} selected — tap the next letter`
-              : found.length === 0
-                ? 'Trace or tap words up, down or sideways'
-                : ' '
+              : pinnedHint
+                ? `${pinnedHint} starts at the yellow ring`
+                : found.length === 0
+                  ? 'Trace or tap words up, down or sideways'
+                  : ' '
           }
+          hintTone={tapPath.length !== 1 && pinnedHint ? 'hint' : 'idle'}
         />
 
         <View style={[styles.board, { width: boardSize }]}>
@@ -379,9 +386,13 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
     alignItems: 'center',
     backgroundColor: colors.surface,
-    borderRadius: radius.xl,
+    borderRadius: radius.xxl,
+    // Chunky bottom edge: the board reads as a physical game tile. The side
+    // borders stay 1px so the lip is the only change to the tile maths.
     borderWidth: 1,
     borderColor: colors.border,
+    borderBottomWidth: LIP.lg,
+    borderBottomColor: colors.lip,
     padding: BOARD_PADDING,
     boxShadow: shadows.card,
   },

@@ -1,3 +1,6 @@
-import { SettingsScreen } from '@/screens/SettingsScreen';
+import { Redirect } from 'expo-router';
 
-export default SettingsScreen;
+/** Settings now live on the Profile screen. */
+export default function SettingsRoute() {
+  return <Redirect href="/profile" />;
+}

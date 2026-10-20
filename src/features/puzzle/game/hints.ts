@@ -13,3 +13,9 @@ export function pickHintWord(words: readonly string[], found: ReadonlySet<string
 export function pickRevealWord(words: readonly string[], found: ReadonlySet<string>, hinted: readonly string[]): string | null {
   return hinted.find((w) => !found.has(w)) ?? words.find((w) => !found.has(w)) ?? null;
 }
+
+/** The latest hinted word that is still unfound (it stays pinned on screen until found), or null. */
+export function latestOpenHint(hinted: readonly string[], found: ReadonlySet<string>): string | null {
+  for (let i = hinted.length - 1; i >= 0; i--) if (!found.has(hinted[i])) return hinted[i];
+  return null;
+}

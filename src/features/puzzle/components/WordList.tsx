@@ -3,7 +3,8 @@ import { StyleSheet, View, type LayoutChangeEvent } from 'react-native';
 
 import { AppText } from '@/components/ui/AppText';
 import { Icon } from '@/components/ui/Icon';
-import { colors, radius, shadows, spacing, wordColors } from '@/theme/tokens';
+import { Pop } from '@/components/ui/Pop';
+import { LIP, colors, radius, shadows, spacing, wordColors } from '@/theme/tokens';
 import type { FoundWord } from '../hooks/usePuzzle';
 
 type Props = {
@@ -18,8 +19,8 @@ type Props = {
 const COMPACT_AFTER = 10;
 
 /**
- * "Words to find" card. Always shows every word (never clipped). Found words
- * take their grid colour, get a check and are struck through.
+ * "Find these words" card. Always shows every word (never clipped). Found words
+ * pop into their grid colour, get a check and are struck through.
  */
 export const WordList = memo(function WordList({ words, found, hinted = [], onLayout }: Props) {
   const foundByWord = new Map(found.map((f) => [f.word, f]));
@@ -28,12 +29,14 @@ export const WordList = memo(function WordList({ words, found, hinted = [], onLa
   return (
     <View style={styles.card} onLayout={onLayout}>
       <View style={styles.header}>
-        <AppText variant="labelMd" color={colors.inkMuted} style={styles.title} accessibilityRole="header">
-          Words to find ({found.length}/{words.length})
+        <AppText variant="headlineSm" accessibilityRole="header" style={styles.title}>
+          {remaining === 0 ? 'All found!' : 'Find these words'}
         </AppText>
-        <AppText variant="labelMd" color={colors.ink}>
-          {remaining === 0 ? 'All found!' : `${remaining} Remaining`}
-        </AppText>
+        <View style={[styles.counter, remaining === 0 && styles.counterDone]}>
+          <AppText variant="labelBadge" color={remaining === 0 ? colors.greenInk : colors.primaryDark}>
+            {found.length} / {words.length}
+          </AppText>
+        </View>
       </View>
       <View style={[styles.list, compact && styles.listCompact]}>
         {words.map((word) => {
@@ -41,30 +44,35 @@ export const WordList = memo(function WordList({ words, found, hinted = [], onLa
           const c = f ? wordColors[f.colorIndex % wordColors.length] : null;
           const isHinted = !f && hinted.includes(word);
           return (
-            <View
-              key={word}
-              style={[styles.chip, compact && styles.chipCompact, c ? { backgroundColor: c.bg } : isHinted ? styles.chipHinted : styles.chipTodo]}
-              accessibilityLabel={`${word}${f ? (f.revealed ? ', revealed' : ', found') : isHinted ? ', hinted' : ''}`}
-            >
-              {/* Fixed-size slot: the check and the dot take the same width, so finding a word never reflows the list. */}
-              <View style={[styles.lead, compact && styles.leadCompact]}>
-                {c ? (
-                  <Icon name={f?.revealed ? 'visibility' : 'check'} size={13} color={c.ink} />
-                ) : isHinted ? (
-                  <Icon name="lightbulb-outline" size={13} color={colors.yellowInk} />
-                ) : (
-                  <View style={styles.dot} />
-                )}
-              </View>
-              <AppText
-                variant={compact ? 'labelMd' : 'labelLg'}
-                color={c ? c.ink : isHinted ? colors.yellowInk : colors.primaryDark}
-                style={c ? styles.struck : undefined}
-                maxFontSizeMultiplier={1.2}
+            <Pop key={word} trigger={f ? 'found' : isHinted ? 'hinted' : 'todo'} skipInitial>
+              <View
+                style={[
+                  styles.chip,
+                  compact && styles.chipCompact,
+                  c ? { backgroundColor: c.bg, borderBottomColor: c.lip } : isHinted ? styles.chipHinted : styles.chipTodo,
+                ]}
+                accessibilityLabel={`${word}${f ? (f.revealed ? ', revealed' : ', found') : isHinted ? ', hinted' : ''}`}
               >
-                {word}
-              </AppText>
-            </View>
+                {/* Fixed-size slot: the check and the dot take the same width, so finding a word never reflows the list. */}
+                <View style={styles.lead}>
+                  {c ? (
+                    <Icon name={f?.revealed ? 'visibility' : 'check'} size={14} color={c.ink} />
+                  ) : isHinted ? (
+                    <Icon name="lightbulb-outline" size={14} color={colors.yellowInk} />
+                  ) : (
+                    <View style={styles.dot} />
+                  )}
+                </View>
+                <AppText
+                  variant={compact ? 'labelMd' : 'labelLg'}
+                  color={c ? c.ink : isHinted ? colors.yellowInk : colors.primaryDark}
+                  style={c ? styles.struck : undefined}
+                  maxFontSizeMultiplier={1.2}
+                >
+                  {word}
+                </AppText>
+              </View>
+            </Pop>
           );
         })}
       </View>
@@ -76,16 +84,18 @@ const styles = StyleSheet.create({
   card: {
     backgroundColor: colors.surface,
     borderRadius: radius.xl,
-    borderWidth: 1,
-    borderColor: colors.border,
+    borderBottomWidth: LIP.md,
+    borderBottomColor: colors.lip,
     paddingHorizontal: spacing.md,
-    paddingTop: 14,
+    paddingTop: 12,
     paddingBottom: 6,
     gap: 10,
     boxShadow: shadows.card,
   },
-  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  title: { textTransform: 'uppercase', letterSpacing: 0.8 },
+  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 8 },
+  title: { fontSize: 18, lineHeight: 24, flexShrink: 1 },
+  counter: { backgroundColor: colors.primarySoft, borderRadius: radius.pill, paddingHorizontal: 10, paddingVertical: 4 },
+  counterDone: { backgroundColor: colors.greenSoft },
   list: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, paddingBottom: 8 },
   listCompact: { gap: 6 },
   chip: {
@@ -93,15 +103,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 5,
     paddingHorizontal: 12,
-    minHeight: 34,
+    minHeight: 36,
     borderRadius: radius.pill,
+    borderBottomWidth: LIP.sm,
   },
-  chipCompact: { minHeight: 28, paddingHorizontal: 9, gap: 3 },
-  chipTodo: { backgroundColor: colors.primarySoft },
-  chipHinted: { backgroundColor: colors.yellowSoft },
+  chipCompact: { minHeight: 30, paddingHorizontal: 9, gap: 3 },
+  chipTodo: { backgroundColor: colors.primarySoft, borderBottomColor: colors.lipSoft },
+  chipHinted: { backgroundColor: colors.yellowSoft, borderBottomColor: colors.yellow },
   // Barely wider than the 7px dot, so chips stay compact while still fitting the check.
-  lead: { width: 12, height: 14, alignItems: 'center', justifyContent: 'center' },
-  leadCompact: { width: 12 },
+  lead: { width: 14, height: 14, alignItems: 'center', justifyContent: 'center' },
   dot: { width: 7, height: 7, borderRadius: 4, backgroundColor: colors.primary },
   struck: { textDecorationLine: 'line-through', opacity: 0.85 },
 });

@@ -1,5 +1,5 @@
 import { getCellFromTouchPoint } from '../selection';
-import { getTileLayout } from '../tileLayout';
+import { boardSizeFor, getTileLayout } from '../tileLayout';
 
 describe('getTileLayout', () => {
   it('fits the grid inside the available size', () => {
@@ -22,5 +22,17 @@ describe('getTileLayout', () => {
     expect(getCellFromTouchPoint({ x: l.size - 1, y: l.size - 1 }, l.pitch, 10)).toEqual({ row: 9, col: 9 });
     // A point in the gap after tile 0 belongs to tile 0 (gap is trailing).
     expect(getCellFromTouchPoint({ x: l.tile + l.gap / 2, y: 1 }, l.pitch, 10)).toEqual({ row: 0, col: 0 });
+  });
+});
+
+describe('boardSizeFor', () => {
+  it('spans the content width on a phone, up to the max', () => {
+    expect(boardSizeFor(390, 844, 16, 560)).toBe(358);
+    expect(boardSizeFor(800, 2000, 16, 560)).toBe(560);
+  });
+
+  it('caps by height on wide, short windows, but never below the floor', () => {
+    expect(boardSizeFor(1200, 800, 16, 560)).toBe(440);
+    expect(boardSizeFor(1200, 400, 16, 560)).toBe(300);
   });
 });
