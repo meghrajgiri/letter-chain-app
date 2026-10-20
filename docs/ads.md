@@ -9,7 +9,7 @@ Library: `react-native-google-mobile-ads` (v17). Config: `app.json` plugin (`and
 | App ID | `ca-app-pub-6296571874627648~8797562192` |
 | Rewarded "Hint reward" | `ca-app-pub-6296571874627648/6139609264` |
 | Interstitial "Between puzzles" | `ca-app-pub-6296571874627648/8715913553` |
-| Rewarded "Streak save" | not created yet: shares the Hint reward unit until it is (`AD_UNITS.streakSave`) |
+| Rewarded "Streak save" | `ca-app-pub-6296571874627648/2808311873` |
 | Publisher ID | `pub-6296571874627648` (in `site/app-ads.txt`) |
 
 These IDs are not secret; they ship inside the app.
@@ -37,8 +37,7 @@ These IDs are not secret; they ship inside the app.
 ## AdMob console checklist
 
 - [x] App added (not yet linked to a store)
-- [x] Ad units: Hint reward (rewarded), Between puzzles (interstitial)
-- [ ] Ad unit: Streak save (rewarded), then put its id in `AD_UNITS.streakSave`
+- [x] Ad units: Hint reward (rewarded), Between puzzles (interstitial), Streak save (rewarded)
 - [ ] Privacy & messaging → European regulations message, published (privacy policy: `https://letterchain.meghrajgiri.com/privacy`)
 - [ ] Payments: name, address and tax info (PIN letter arrives at about $10 of earnings)
 - [ ] After the app is live on Play: Apps → App settings → **link to Google Play**, then wait for AdMob's app review. Real ads only serve after this.
