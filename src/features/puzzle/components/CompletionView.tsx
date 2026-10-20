@@ -213,7 +213,7 @@ export function CompletionView({
                   </AppText>
                   <View style={[styles.dayDot, done ? (isToday ? styles.dayToday : styles.dayDone) : styles.dayEmpty]}>
                     {done ? (
-                      <Icon name="check" size={18} color={colors.surface} />
+                      <Icon name={streak.weekSaved[i] ? 'shield' : 'check'} size={18} color={colors.surface} />
                     ) : future && i === streak.todayIndex + 1 ? (
                       <AppText variant="labelBadge" color={colors.inkMuted}>
                         Next

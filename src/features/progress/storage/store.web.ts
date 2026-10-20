@@ -3,21 +3,22 @@
  * needs special headers, so the web build (used for browser testing) keeps
  * the same data in localStorage behind the same interface.
  */
-import type { GameResult } from '../types';
+import type { GameResult, StreakSave } from '../types';
 import type { ProgressStore, WordHistoryEntry } from './types';
 
 const KEY = 'letterchain.progress.v1';
 
-type Data = { results: GameResult[]; wordHistory: WordHistoryEntry[]; settings: Record<string, string> };
+type Data = { results: GameResult[]; wordHistory: WordHistoryEntry[]; settings: Record<string, string>; streakSaves: StreakSave[] };
 
 function read(): Data {
   try {
     const raw = globalThis.localStorage?.getItem(KEY);
-    if (raw) return JSON.parse(raw) as Data;
+    // Saves came later: older data has none.
+    if (raw) return { streakSaves: [], ...(JSON.parse(raw) as Partial<Data>) } as Data;
   } catch {
     // Private mode / blocked storage: start empty.
   }
-  return { results: [], wordHistory: [], settings: {} };
+  return { results: [], wordHistory: [], settings: {}, streakSaves: [] };
 }
 
 function write(data: Data) {
@@ -56,12 +57,25 @@ export async function openProgressStore(): Promise<ProgressStore> {
       data = { ...data, results: data.results.map((r) => (set.has(r.id) ? { ...r, syncedAt } : r)) };
       save();
     },
+    async loadStreakSaves() {
+      return [...data.streakSaves].sort((a, b) => a.savedAt.localeCompare(b.savedAt));
+    },
+    async addStreakSave(streakSave) {
+      if (data.streakSaves.some((s) => s.id === streakSave.id)) return;
+      data = { ...data, streakSaves: [...data.streakSaves, streakSave] };
+      save();
+    },
+    async markStreakSavesSynced(ids, syncedAt) {
+      const set = new Set(ids);
+      data = { ...data, streakSaves: data.streakSaves.map((s) => (set.has(s.id) ? { ...s, syncedAt } : s)) };
+      save();
+    },
     async deleteSyncedResults() {
-      data = { ...data, results: data.results.filter((r) => !r.syncedAt) };
+      data = { ...data, results: data.results.filter((r) => !r.syncedAt), streakSaves: [] };
       save();
     },
     async deleteAllResults() {
-      data = { ...data, results: [] };
+      data = { ...data, results: [], streakSaves: [] };
       save();
     },
     async getSetting(key) {

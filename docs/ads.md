@@ -9,6 +9,7 @@ Library: `react-native-google-mobile-ads` (v17). Config: `app.json` plugin (`and
 | App ID | `ca-app-pub-6296571874627648~8797562192` |
 | Rewarded "Hint reward" | `ca-app-pub-6296571874627648/6139609264` |
 | Interstitial "Between puzzles" | `ca-app-pub-6296571874627648/8715913553` |
+| Rewarded "Streak save" | `ca-app-pub-6296571874627648/2808311873` |
 | Publisher ID | `pub-6296571874627648` (in `site/app-ads.txt`) |
 
 These IDs are not secret; they ship inside the app.
@@ -17,6 +18,8 @@ These IDs are not secret; they ship inside the app.
 
 - **Consent first.** On launch, Google's consent form (UMP) appears only where the law requires it (EU/UK/Switzerland). The SDK starts only after that, and ads load only once `canRequestAds` is true. Players who must be offered it get **Settings → Ad privacy choices**.
 - **Rewarded:** when out of hints, the hint button becomes "Watch ad: +1 hint", up to 3 times per puzzle. The hint is granted only when Google reports the reward was earned. The clock pauses while the ad plays.
+- **Rewarded streak save:** the day after a missed daily, Home shows "Save your N-day streak" (rules in `progress/streakSave.ts`: one missed day, run of 2+ days, once per 7 days). Watching to the end records the save; closing early doesn't. Music pauses while it plays. Signed-in saves reach the server only through Google's **server-side verification** callback (`admob-ssv` Edge Function, see supabase-setup.md), so they can't be faked; guests' saves stay on the device.
+- **No ad available** (no fill, offline, ads not allowed yet): rewarded placements retry every 30 s while wanted (`useRewarded`). The streak card says "No ad right now" after 12 s instead of loading forever, and keeps the offer for the rest of the day.
 - **Interstitial:** only when tapping Continue after a free-play puzzle, at most one per 3 finished free-play puzzles and 3 minutes apart (counted per app session). Never before, during or after the daily.
 - **No banners, no app-open ads.**
 - **Web build:** no ads (`*.web.ts` stand-ins).
@@ -35,7 +38,8 @@ These IDs are not secret; they ship inside the app.
 ## AdMob console checklist
 
 - [x] App added (not yet linked to a store)
-- [x] Ad units: Hint reward (rewarded), Between puzzles (interstitial)
+- [x] Ad units: Hint reward (rewarded), Between puzzles (interstitial), Streak save (rewarded)
+- [ ] Streak save unit → Server-side verification callback URL `https://wslyfakxemgoluqupofu.supabase.co/functions/v1/admob-ssv`
 - [ ] Privacy & messaging → European regulations message, published (privacy policy: `https://letterchain.meghrajgiri.com/privacy`)
 - [ ] Payments: name, address and tax info (PIN letter arrives at about $10 of earnings)
 - [ ] After the app is live on Play: Apps → App settings → **link to Google Play**, then wait for AdMob's app review. Real ads only serve after this.

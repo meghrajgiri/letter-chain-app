@@ -1,5 +1,5 @@
-import type { GameResult } from '../../progress/types';
-import { fromRow, syncResults, toRow, type ResultRow, type SyncApi } from '../sync';
+import type { GameResult, StreakSave } from '../../progress/types';
+import { fromRow, mergeSynced, syncResults, syncStreakSaves, toRow, type ResultRow, type StreakSaveApi, type StreakSaveRow, type SyncApi } from '../sync';
 
 const result = (id: string, extra: Partial<GameResult> = {}): GameResult => ({
   id,
@@ -65,5 +65,37 @@ describe('syncResults', () => {
     expect(server.rows).toHaveLength(1);
     expect(second.downloaded).toEqual([]);
     expect(second.cursor).toBe(first.cursor);
+  });
+});
+
+describe('syncStreakSaves', () => {
+  it('downloads verified saves and marks local ones synced only once the server has them', async () => {
+    // The server only has saves Google verified (created by admob-ssv).
+    const rows: StreakSaveRow[] = [
+      { id: 'remote', day: '2026-10-10', saved_at: '2026-10-11T08:00:00.000Z', uploaded_at: '2026-10-11T08:00:01.000Z' },
+      { id: 'verified', day: '2026-10-19', saved_at: '2026-10-20T08:30:00.000Z', uploaded_at: '2026-10-20T08:30:02.000Z' },
+    ];
+    const api: StreakSaveApi = { pullAll: async () => [...rows] };
+    const verified: StreakSave = { id: 'verified', day: '2026-10-19', savedAt: '2026-10-20T08:30:00.000Z', syncedAt: null };
+    const notYet: StreakSave = { id: 'waiting', day: '2026-10-12', savedAt: '2026-10-13T09:00:00.000Z', syncedAt: null };
+
+    const out = await syncStreakSaves(api, [verified, notYet]);
+    expect(out.confirmedIds).toEqual(['verified']);
+    expect(out.downloaded.map((s) => s.id).sort()).toEqual(['remote', 'verified']);
+    expect(out.downloaded.find((s) => s.id === 'remote')).toEqual({ id: 'remote', day: '2026-10-10', savedAt: '2026-10-11T08:00:00.000Z', syncedAt: '2026-10-11T08:00:01.000Z' });
+  });
+});
+
+describe('mergeSynced', () => {
+  it('marks uploaded items synced, adds new downloads once, and sorts', () => {
+    const local = [result('b', { completedAt: '2026-10-05T12:00:00.000Z' }), result('a', { completedAt: '2026-10-05T11:00:00.000Z' })];
+    const downloaded = [result('a'), result('c', { completedAt: '2026-10-05T10:00:00.000Z' })];
+    const { next, fresh } = mergeSynced(local, ['b'], downloaded, 'NOW', (r) => r.completedAt);
+    expect(next.map((r) => [r.id, r.syncedAt])).toEqual([
+      ['c', null],
+      ['a', null],
+      ['b', 'NOW'],
+    ]);
+    expect(fresh.map((r) => r.id)).toEqual(['c']);
   });
 });

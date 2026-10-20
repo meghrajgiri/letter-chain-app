@@ -4,7 +4,7 @@
  * device doesn't have. Duplicates are ignored on both sides by id.
  * Pure logic over a small API so it can be tested without a server.
  */
-import type { GameMode, GameResult } from '../progress/types';
+import type { GameMode, GameResult, StreakSave } from '../progress/types';
 
 export type ResultRow = {
   id: string;
@@ -61,6 +61,27 @@ export function fromRow(row: ResultRow): GameResult {
   };
 }
 
+/**
+ * Applies a sync outcome to a local list of append-only records: marks the
+ * uploaded (or server-confirmed) ones synced and adds downloaded ones not already here (by id),
+ * sorted by `sortKey`. `fresh` is what still needs saving on the device.
+ */
+export function mergeSynced<T extends { id: string; syncedAt?: string | null }>(
+  local: readonly T[],
+  uploadedIds: readonly string[],
+  downloaded: readonly T[],
+  syncedAt: string,
+  sortKey: (item: T) => string,
+): { next: T[]; fresh: T[] } {
+  const uploaded = new Set(uploadedIds);
+  const known = new Set(local.map((item) => item.id));
+  const fresh = downloaded.filter((item) => !known.has(item.id));
+  const next = [...local.map((item) => (uploaded.has(item.id) ? { ...item, syncedAt } : item)), ...fresh].sort((a, b) =>
+    sortKey(a).localeCompare(sortKey(b)),
+  );
+  return { next, fresh };
+}
+
 export type SyncApi = {
   /** Insert rows, ignoring ids the server already has. */
   upload(rows: ResultRow[]): Promise<void>;
@@ -95,4 +116,35 @@ export async function syncResults(api: SyncApi, pending: readonly GameResult[], 
     if (page.length < PULL_PAGE) break;
   }
   return { uploadedIds, downloaded, cursor: next };
+}
+
+// ------------------------------------------------------------ streak saves
+
+export type StreakSaveRow = { id: string; day: string; saved_at: string; uploaded_at?: string };
+
+export const saveFromRow = (row: StreakSaveRow): StreakSave => ({
+  id: row.id,
+  day: row.day,
+  savedAt: new Date(row.saved_at).toISOString(),
+  syncedAt: row.uploaded_at ?? new Date().toISOString(),
+});
+
+export type StreakSaveApi = {
+  /** Every save of the player. There are at most a few a month, so no paging or cursor. */
+  pullAll(): Promise<StreakSaveRow[]>;
+};
+
+/**
+ * Saves are created on the server only, by Google's server-side verification
+ * (admob-ssv), never uploaded by the app. A local save counts as synced once
+ * its verified copy (same id) is on the server; until then it stays pending and
+ * only this device counts it. Guest saves never get a server copy.
+ */
+export async function syncStreakSaves(
+  api: StreakSaveApi,
+  pending: readonly StreakSave[],
+): Promise<{ confirmedIds: string[]; downloaded: StreakSave[] }> {
+  const downloaded = (await api.pullAll()).map(saveFromRow);
+  const onServer = new Set(downloaded.map((s) => s.id));
+  return { confirmedIds: pending.filter((s) => onServer.has(s.id)).map((s) => s.id), downloaded };
 }

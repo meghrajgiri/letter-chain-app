@@ -5,7 +5,7 @@ import { AppState } from 'react-native';
 import { supabase, supabaseConfigured } from '@/lib/supabase';
 import { useProgress } from '../progress/ProgressProvider';
 import { getGoogleIdToken, googleSignOut } from './googleSignIn';
-import { syncResults, type ResultRow, type SyncApi } from './sync';
+import { syncResults, syncStreakSaves, type ResultRow, type StreakSaveApi, type StreakSaveRow, type SyncApi } from './sync';
 
 export type AccountUser = { id: string; email: string | null; name: string | null; avatarUrl: string | null };
 export type SyncState = 'idle' | 'syncing' | 'error';
@@ -60,7 +60,22 @@ function serverApi(userId: string): SyncApi {
   };
 }
 
+function streakSaveApi(userId: string): StreakSaveApi {
+  return {
+    async pullAll() {
+      const { data, error } = await supabase.from('streak_saves').select('id, day, saved_at, uploaded_at').eq('user_id', userId).order('saved_at');
+      if (error) throw error;
+      return (data ?? []) as StreakSaveRow[];
+    },
+  };
+}
+
 const cursorKey = (userId: string) => `sync.cursor.${userId}`;
+
+/** Google's verification callback usually lands within seconds; sync again after these delays to pick it up. */
+const VERIFY_SYNC_DELAYS_MS = [8_000, 30_000];
+/** Only a save made this recently is still worth waiting for. */
+const VERIFY_WINDOW_MS = 2 * 60_000;
 
 /**
  * Optional Google account on top of local-first progress
@@ -101,10 +116,22 @@ export function AccountProvider({ children }: { children: ReactNode }) {
       do {
         again.current = false;
         const cursor = await sync.readValue(cursorKey(user.id));
-        const outcome = await syncResults(serverApi(user.id), sync.pending(), cursor);
+        // Results and streak saves talk to the server in parallel and fail
+        // independently: one failing never holds back the other. Local writes
+        // stay one after the other (one SQLite connection, one transaction at a time).
+        const [results, saves] = await Promise.allSettled([
+          syncResults(serverApi(user.id), sync.pending(), cursor),
+          syncStreakSaves(streakSaveApi(user.id), sync.pendingSaves()),
+        ]);
         const syncedAt = new Date().toISOString();
-        await sync.apply({ uploadedIds: outcome.uploadedIds, downloaded: outcome.downloaded, syncedAt });
-        if (outcome.cursor) await sync.writeValue(cursorKey(user.id), outcome.cursor);
+        if (results.status === 'fulfilled') {
+          const outcome = results.value;
+          await sync.apply({ uploadedIds: outcome.uploadedIds, downloaded: outcome.downloaded, syncedAt });
+          if (outcome.cursor) await sync.writeValue(cursorKey(user.id), outcome.cursor);
+        }
+        if (saves.status === 'fulfilled') await sync.applySaves({ ...saves.value, syncedAt });
+        const failure = [results, saves].find((r) => r.status === 'rejected');
+        if (failure) throw failure.reason;
         setLastSyncedAt(syncedAt);
       } while (again.current);
       setSyncState('idle');
@@ -118,7 +145,8 @@ export function AccountProvider({ children }: { children: ReactNode }) {
 
   // Sync when signed in (also right after sign-in), whenever new games are
   // waiting, and when the app comes back to the foreground.
-  const pendingCount = results.filter((r) => !r.syncedAt).length;
+  const { streakSaves } = progress;
+  const pendingCount = results.filter((r) => !r.syncedAt).length + streakSaves.filter((s) => !s.syncedAt).length;
   useEffect(() => {
     if (!user || !ready) return;
     // Short debounce: several changes in a row (e.g. sign-in + restored games) sync once.
@@ -131,6 +159,19 @@ export function AccountProvider({ children }: { children: ReactNode }) {
     });
     return () => sub.remove();
   }, [syncNow]);
+
+  // A new streak save becomes "synced" only when Google's verification callback has
+  // created its server copy, usually within seconds: check back a couple of times.
+  // Tied to this user, so signing out or switching accounts cancels the checks.
+  const newestPendingSave = streakSaves.findLast((s) => !s.syncedAt);
+  const awaitingId = newestPendingSave?.id ?? null;
+  const awaitingSince = newestPendingSave?.savedAt ?? null;
+  useEffect(() => {
+    if (!user || !awaitingId || !awaitingSince) return;
+    if (Date.now() - Date.parse(awaitingSince) > VERIFY_WINDOW_MS) return; // an old one (e.g. a guest save) won't verify
+    const timers = VERIFY_SYNC_DELAYS_MS.map((delay) => setTimeout(() => syncNow(), delay));
+    return () => timers.forEach(clearTimeout);
+  }, [user, awaitingId, awaitingSince, syncNow]);
 
   const signInWithGoogle = useCallback(async () => {
     if (!supabaseConfigured) throw new Error('Accounts aren’t set up yet');

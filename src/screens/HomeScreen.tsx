@@ -17,6 +17,7 @@ import { getTheme } from '@/features/puzzle/data/themes';
 import { msUntilNextDaily } from '@/features/daily/daily';
 import { useDaily } from '@/features/daily/dailyStore';
 import { formatElapsed } from '@/features/puzzle/hooks/usePuzzleTimer';
+import { StreakSaveCard } from '@/features/streakSave/StreakSaveCard';
 import { LIP, colors, fonts, radius, shadows, spacing } from '@/theme/tokens';
 
 function formatCountdown(ms: number): string {
@@ -160,6 +161,9 @@ export function HomeScreen() {
             <IconButton icon="settings" label="Profile and settings" size={42} onPress={() => router.push('/profile')} />
           </View>
         </View>
+
+        {/* Only the day after a missed daily: watch an ad to keep the streak. */}
+        <StreakSaveCard />
 
         {/* Daily challenge: today's state (done + time + countdown) lives here, so Home needs no second daily card. */}
         <LinearGradient colors={['#8A7BF5', colors.primary, '#4A36C4']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.dailyCard}>

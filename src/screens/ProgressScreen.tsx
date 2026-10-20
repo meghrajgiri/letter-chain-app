@@ -145,8 +145,8 @@ export function ProgressScreen() {
                     {isToday ? 'Today' : d}
                   </AppText>
                   {streak.week[i] ? (
-                    <View style={styles.weekDone}>
-                      <Icon name="check" size={18} color={colors.greenInk} />
+                    <View style={styles.weekDone} accessibilityLabel={streak.weekSaved[i] ? 'Saved with an ad' : 'Played'}>
+                      <Icon name={streak.weekSaved[i] ? 'shield' : 'check'} size={18} color={colors.greenInk} />
                     </View>
                   ) : (
                     <View style={[styles.weekEmpty, isToday && styles.weekToday]} />
