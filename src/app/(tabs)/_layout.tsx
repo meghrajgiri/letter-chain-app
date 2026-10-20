@@ -1,18 +1,21 @@
-import { Tabs } from 'expo-router';
+import { Stack } from 'expo-router';
 
-import { FloatingTabBar } from '@/components/ui/FloatingTabBar';
 import { colors } from '@/theme/tokens';
 
-export default function TabLayout() {
+/** Home always sits under Trophies/Profile, even when one is opened from a deep link. */
+export const unstable_settings = { initialRouteName: 'index' };
+
+/**
+ * Single lobby: Home is the only hub. Trophies and Profile are pushed over it
+ * and draw their own headers, so there is no tab bar anywhere in the game.
+ */
+export default function LobbyLayout() {
   return (
-    <Tabs
-      tabBar={(props) => <FloatingTabBar {...props} />}
-      screenOptions={{ headerShown: false, sceneStyle: { backgroundColor: colors.background } }}
-    >
-      <Tabs.Screen name="index" options={{ title: 'Home' }} />
-      <Tabs.Screen name="play" options={{ title: 'Play' }} />
-      <Tabs.Screen name="progress" options={{ title: 'Progress' }} />
-      <Tabs.Screen name="profile" options={{ title: 'Profile' }} />
-    </Tabs>
+    <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.background } }}>
+      <Stack.Screen name="index" />
+      <Stack.Screen name="progress" />
+      <Stack.Screen name="profile" />
+      <Stack.Screen name="play" />
+    </Stack>
   );
 }

@@ -3,7 +3,8 @@ import { StyleSheet, View } from 'react-native';
 
 import { AppText } from '@/components/ui/AppText';
 import { Icon } from '@/components/ui/Icon';
-import { colors, radius, shadows } from '@/theme/tokens';
+import { Pop } from '@/components/ui/Pop';
+import { LIP, colors, radius, shadows } from '@/theme/tokens';
 
 export type SelectionFeedback = { tone: 'found' | 'info'; text: string } | null;
 
@@ -12,6 +13,11 @@ type Props = {
   selectionText: string;
   feedback: SelectionFeedback;
   hint: string;
+  /**
+   * 'hint' pins the prompt in yellow with a bulb: used for an active hint,
+   * which stays until its word is found instead of fading like feedback.
+   */
+  hintTone?: 'idle' | 'hint';
 };
 
 /**
@@ -19,7 +25,7 @@ type Props = {
  * the finger, which covers them on the board), then a short found / miss
  * confirmation, otherwise a gentle prompt. Fixed height so the board never jumps.
  */
-export const SelectionChip = memo(function SelectionChip({ selectionText, feedback, hint }: Props) {
+export const SelectionChip = memo(function SelectionChip({ selectionText, feedback, hint, hintTone = 'idle' }: Props) {
   let content;
   if (selectionText) {
     content = (
@@ -37,12 +43,25 @@ export const SelectionChip = memo(function SelectionChip({ selectionText, feedba
   } else if (feedback) {
     const found = feedback.tone === 'found';
     content = (
-      <View style={[styles.pill, found ? styles.found : styles.info]}>
-        <Icon name={found ? 'check-circle' : 'info-outline'} size={20} color={found ? colors.greenInk : colors.inkMuted} />
-        <AppText variant="labelLg" color={found ? colors.greenInk : colors.inkMuted} numberOfLines={1} style={styles.feedbackText}>
-          {feedback.text}
-        </AppText>
-      </View>
+      <Pop trigger={feedback.text}>
+        <View style={[styles.pill, found ? styles.found : styles.info]}>
+          <Icon name={found ? 'check-circle' : 'info-outline'} size={20} color={found ? colors.greenInk : colors.inkMuted} />
+          <AppText variant="labelLg" color={found ? colors.greenInk : colors.inkMuted} numberOfLines={1} style={styles.feedbackText}>
+            {feedback.text}
+          </AppText>
+        </View>
+      </Pop>
+    );
+  } else if (hint.trim() && hintTone === 'hint') {
+    content = (
+      <Pop trigger={hint}>
+        <View style={[styles.pill, styles.pinned]}>
+          <Icon name="lightbulb" size={20} color={colors.yellowInk} />
+          <AppText variant="labelLg" color={colors.yellowInk} numberOfLines={1} style={styles.feedbackText}>
+            {hint}
+          </AppText>
+        </View>
+      </Pop>
     );
   } else if (hint.trim()) {
     content = (
@@ -72,10 +91,11 @@ const styles = StyleSheet.create({
     height: 52,
     borderRadius: radius.xl,
   },
-  idle: { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border },
-  active: { backgroundColor: colors.primary, boxShadow: shadows.primaryGlow },
-  found: { backgroundColor: colors.greenSoft, boxShadow: shadows.greenGlow },
+  idle: { backgroundColor: colors.surface, borderBottomWidth: LIP.sm, borderBottomColor: colors.lip },
+  active: { backgroundColor: colors.primary, boxShadow: shadows.primaryGlow, borderBottomWidth: LIP.sm, borderBottomColor: colors.primaryDark },
+  found: { backgroundColor: colors.greenSoft, boxShadow: shadows.greenGlow, borderBottomWidth: LIP.sm, borderBottomColor: colors.green },
   info: { backgroundColor: colors.surfaceMuted },
+  pinned: { backgroundColor: colors.yellowSoft, borderBottomWidth: LIP.sm, borderBottomColor: colors.yellow },
   letters: { letterSpacing: 2.5 },
   feedbackText: { flexShrink: 1 },
   pts: { backgroundColor: 'rgba(255,255,255,0.2)', borderRadius: radius.pill, paddingHorizontal: 9, paddingVertical: 2 },

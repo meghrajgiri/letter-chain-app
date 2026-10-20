@@ -1,6 +1,6 @@
 import { Pressable, StyleSheet } from 'react-native';
 
-import { colors } from '@/theme/tokens';
+import { LIP, colors } from '@/theme/tokens';
 import { Icon, type IconName } from './Icon';
 
 type Props = {
@@ -8,12 +8,19 @@ type Props = {
   label: string;
   onPress: () => void;
   size?: number;
-  variant?: 'white' | 'muted';
+  variant?: 'white' | 'muted' | 'primary';
   disabled?: boolean;
 };
 
-/** Circular icon button (48px default) for tools like pause, hint, reveal. */
+const LOOK = {
+  white: { bg: colors.surface, lip: colors.lip, ink: colors.ink },
+  muted: { bg: colors.primarySoft, lip: colors.lipSoft, ink: colors.primaryDark },
+  primary: { bg: colors.primary, lip: colors.primaryDark, ink: colors.primaryInk },
+} as const;
+
+/** Round chunky icon button (48px default) for tools like back, pause, hint, reveal. */
 export function IconButton({ icon, label, onPress, size = 48, variant = 'white', disabled }: Props) {
+  const look = LOOK[variant];
   return (
     <Pressable
       accessibilityRole="button"
@@ -24,21 +31,19 @@ export function IconButton({ icon, label, onPress, size = 48, variant = 'white',
       hitSlop={4}
       style={({ pressed }) => [
         styles.base,
-        { width: size, height: size, borderRadius: size / 2 },
-        variant === 'white' ? styles.white : styles.muted,
-        pressed && styles.pressed,
+        { width: size, height: size + LIP.md, borderRadius: size / 2, backgroundColor: look.bg, borderBottomColor: look.lip },
+        // The face drops onto its lip; total height stays size + lip so nothing around it moves.
+        pressed && [styles.pressed, { height: size }],
         disabled && styles.disabled,
       ]}
     >
-      <Icon name={icon} size={Math.round(size * 0.46)} color={colors.inkMuted} />
+      <Icon name={icon} size={Math.round(size * 0.46)} color={look.ink} />
     </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
-  base: { alignItems: 'center', justifyContent: 'center' },
-  white: { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border },
-  muted: { backgroundColor: colors.surfaceMuted },
-  pressed: { opacity: 0.7, transform: [{ scale: 0.96 }] },
+  base: { alignItems: 'center', justifyContent: 'center', borderBottomWidth: LIP.md },
+  pressed: { borderBottomWidth: 0, marginTop: LIP.md, opacity: 0.9 },
   disabled: { opacity: 0.4 },
 });

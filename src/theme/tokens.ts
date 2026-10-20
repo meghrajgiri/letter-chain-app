@@ -6,11 +6,15 @@ import type { TextStyle } from 'react-native';
 
 export const colors = {
   // Surfaces
-  background: '#F8F7FC',
+  background: '#F1EEFB',
   surface: '#FFFFFF',
   surfaceMuted: '#F0EFF7',
   surfaceLow: '#F5F2FF',
   border: '#E8E7EF',
+  /** Chunky bottom edge ("lip") under white surfaces, the game's tactile depth cue. */
+  lip: '#D8D3EE',
+  /** Lip under lavender (primarySoft) surfaces. */
+  lipSoft: '#CBC3F2',
   // Text
   ink: '#20202A',
   inkMuted: '#6F6F7B',
@@ -24,11 +28,17 @@ export const colors = {
   primarySoft: '#EAE7FF',
   // Accents
   yellow: '#FFCA3A',
+  yellowLip: '#E0A818',
   yellowSoft: '#FFF4CC',
   yellowInk: '#6F5400',
   green: '#35B779',
+  greenLip: '#23945E',
   greenSoft: '#DDF7EA',
   greenInk: '#00663E',
+  // Coral accent for "hot" moments (streak at risk, personal best).
+  coral: '#FF7A59',
+  coralSoft: '#FFE3DA',
+  coralInk: '#8A2E12',
   // Status
   pass: '#00663E',
   warn: '#B25E00',
@@ -88,9 +98,9 @@ export const fonts = {
 /** Typography presets from the design system. */
 export const type = {
   displayHero: { fontFamily: fonts.extrabold, fontSize: 40, lineHeight: 48, letterSpacing: -0.8 },
-  headlineLg: { fontFamily: fonts.bold, fontSize: 32, lineHeight: 40, letterSpacing: -0.3 },
-  headlineMd: { fontFamily: fonts.bold, fontSize: 24, lineHeight: 32, letterSpacing: -0.2 },
-  headlineSm: { fontFamily: fonts.bold, fontSize: 20, lineHeight: 28 },
+  headlineLg: { fontFamily: fonts.extrabold, fontSize: 32, lineHeight: 40, letterSpacing: -0.5 },
+  headlineMd: { fontFamily: fonts.extrabold, fontSize: 24, lineHeight: 32, letterSpacing: -0.3 },
+  headlineSm: { fontFamily: fonts.extrabold, fontSize: 20, lineHeight: 28, letterSpacing: -0.2 },
   bodyLg: { fontFamily: fonts.medium, fontSize: 18, lineHeight: 26 },
   bodyMd: { fontFamily: fonts.medium, fontSize: 16, lineHeight: 24 },
   bodySm: { fontFamily: fonts.medium, fontSize: 14, lineHeight: 20 },
@@ -110,3 +120,6 @@ export const shadows = {
   greenGlow: '0px 4px 16px rgba(53, 183, 121, 0.30)',
   sheet: '0px 16px 40px -8px rgba(32, 32, 42, 0.16)',
 } as const;
+
+/** Thickness of the tactile bottom edge on chunky surfaces (cards, chips, buttons). */
+export const LIP = { sm: 3, md: 4, lg: 6 } as const;

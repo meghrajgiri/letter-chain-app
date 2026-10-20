@@ -23,3 +23,16 @@ export function getTileLayout(gridSize: number, maxSize: number, gap = gapForGri
   const tile = Math.max(12, Math.floor((maxSize + gap) / gridSize - gap));
   return { tile, gap, pitch: tile + gap, size: gridSize * tile + (gridSize - 1) * gap };
 }
+
+/** Largest share of the window height the board may take, and the floor for that cap. */
+const BOARD_HEIGHT_SHARE = 0.55;
+const MIN_BOARD = 300;
+
+/**
+ * Board side for a window: the full content width up to `maxBoard`. Wide, short
+ * windows (tablets in landscape, which ignore the portrait lock) are also capped
+ * by height so the word list stays on screen.
+ */
+export function boardSizeFor(windowWidth: number, windowHeight: number, padding: number, maxBoard: number): number {
+  return Math.min(windowWidth - padding * 2, maxBoard, Math.max(MIN_BOARD, Math.floor(windowHeight * BOARD_HEIGHT_SHARE)));
+}

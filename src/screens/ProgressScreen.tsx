@@ -4,13 +4,13 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AppText } from '@/components/ui/AppText';
 import { Button } from '@/components/ui/Button';
-import { TAB_BAR_SPACE } from '@/components/ui/FloatingTabBar';
 import { Icon, type IconName } from '@/components/ui/Icon';
+import { ScreenHeader } from '@/components/ui/ScreenHeader';
 import { StreakChip } from '@/components/ui/StreakChip';
 import { useProgress } from '@/features/progress/ProgressProvider';
 import { formatElapsed } from '@/features/puzzle/hooks/usePuzzleTimer';
 import { openDaily } from '@/features/play/autoPlay';
-import { colors, radius, shadows, spacing } from '@/theme/tokens';
+import { LIP, colors, radius, shadows, spacing } from '@/theme/tokens';
 
 const WEEK_DAYS = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
 
@@ -89,18 +89,12 @@ export function ProgressScreen() {
 
   return (
     <SafeAreaView style={styles.safe} edges={['top', 'left', 'right']}>
+      <ScreenHeader title="Trophies" right={<StreakChip days={streak.current} />} />
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        <View style={styles.topBar}>
-          <StreakChip days={streak.current} />
-        </View>
-
         <View style={styles.titleRow}>
           <View style={styles.flex}>
-            <AppText variant="headlineLg" accessibilityRole="header">
-              Your Progress
-            </AppText>
             <AppText variant="bodyMd" color={colors.inkMuted}>
-              Keep your daily habit alive
+              Streaks, stats and badges
             </AppText>
           </View>
           <View style={styles.levelPills}>
@@ -333,9 +327,8 @@ export function ProgressScreen() {
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.background },
-  content: { paddingHorizontal: spacing.md, paddingBottom: TAB_BAR_SPACE, gap: spacing.lg },
-  topBar: { minHeight: 48, flexDirection: 'row', justifyContent: 'flex-end', alignItems: 'center' },
-  titleRow: { flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: -8 },
+  content: { paddingHorizontal: spacing.md, paddingTop: 4, paddingBottom: spacing.xxl, gap: spacing.lg },
+  titleRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   flex: { flex: 1 },
   upper: { textTransform: 'uppercase' },
   center: { textAlign: 'center' },
@@ -349,7 +342,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 5,
   },
-  streakCard: { borderRadius: radius.xxl, padding: spacing.lg, gap: 16, boxShadow: shadows.primaryGlow },
+  streakCard: { borderRadius: radius.xxl, padding: spacing.lg, gap: 16, boxShadow: shadows.primaryGlow, borderBottomWidth: LIP.lg, borderBottomColor: '#3A2A9E' },
   rowBetween: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 8 },
   glassTag: { backgroundColor: 'rgba(255,255,255,0.18)', borderRadius: radius.pill, paddingHorizontal: 14, paddingVertical: 7 },
   noteRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
@@ -375,7 +368,7 @@ const styles = StyleSheet.create({
   weekEmpty: { width: 34, height: 34, borderRadius: 17, backgroundColor: 'rgba(255,255,255,0.18)' },
   // Pending today: outlined ring (filled + check only once done).
   weekToday: { backgroundColor: 'transparent', borderWidth: 2.5, borderColor: colors.yellow, borderStyle: 'dashed' },
-  emptyCard: { alignItems: 'center', gap: 8, backgroundColor: colors.surface, borderRadius: radius.xl, padding: spacing.lg, boxShadow: shadows.card },
+  emptyCard: { alignItems: 'center', gap: 8, backgroundColor: colors.surface, borderRadius: radius.xl, padding: spacing.lg, boxShadow: shadows.card, borderBottomWidth: LIP.md, borderBottomColor: colors.lip },
   emptyIcon: { width: 56, height: 56, borderRadius: 28, backgroundColor: colors.primarySoft, alignItems: 'center', justifyContent: 'center', marginBottom: 4 },
   emptyButton: { marginTop: 8, alignSelf: 'stretch' },
   statGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
@@ -387,10 +380,12 @@ const styles = StyleSheet.create({
     padding: spacing.md,
     gap: 2,
     boxShadow: shadows.card,
+    borderBottomWidth: LIP.md,
+    borderBottomColor: colors.lip,
   },
   statIcon: { width: 44, height: 44, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center', marginBottom: 10 },
   statLabel: { marginBottom: 2 },
-  card: { backgroundColor: colors.surface, borderRadius: radius.xl, padding: spacing.md, gap: 16, boxShadow: shadows.card },
+  card: { backgroundColor: colors.surface, borderRadius: radius.xl, padding: spacing.md, gap: 16, boxShadow: shadows.card, borderBottomWidth: LIP.md, borderBottomColor: colors.lip },
   changeTag: { backgroundColor: colors.greenSoft, borderRadius: radius.pill, paddingHorizontal: 10, paddingVertical: 4 },
   bars: { flexDirection: 'row', justifyContent: 'space-between', height: 96 },
   barCol: { alignItems: 'center', gap: 6, flex: 1 },
@@ -399,7 +394,7 @@ const styles = StyleSheet.create({
   barToday: { backgroundColor: colors.primary },
   countTag: { backgroundColor: colors.surfaceMuted, borderRadius: radius.pill, paddingHorizontal: 8, paddingVertical: 2, marginLeft: 4 },
   badges: { gap: 10 },
-  badgeCard: { backgroundColor: colors.surface, borderRadius: radius.xl, padding: spacing.md, gap: 12, boxShadow: shadows.card },
+  badgeCard: { backgroundColor: colors.surface, borderRadius: radius.xl, padding: spacing.md, gap: 12, boxShadow: shadows.card, borderBottomWidth: LIP.md, borderBottomColor: colors.lip },
   badgeRow: { flexDirection: 'row', alignItems: 'center', gap: 14 },
   badgeIcon: { width: 52, height: 52, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center' },
   claimed: { backgroundColor: colors.greenSoft, borderRadius: radius.pill, paddingHorizontal: 10, paddingVertical: 4 },
