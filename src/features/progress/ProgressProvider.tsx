@@ -30,8 +30,12 @@ type ProgressApi = {
   recordGame: (game: NewGameResult) => { result: GameResult; completion: CompletionSummary };
   /** Missed dailies kept by a streak save. */
   streakSaves: readonly StreakSave[];
-  /** Records that the missed daily `day` was saved (call only after the reward is earned). */
-  saveStreak: (day: string) => void;
+  /**
+   * Records that the missed daily `day` was saved (call only after the reward is
+   * earned). For signed-in players `id` is the one sent to Google with the ad, so
+   * the verified server copy (created by admob-ssv) matches this local one.
+   */
+  saveStreak: (day: string, id?: string) => void;
   settings: AppSettings;
   updateSettings: (patch: Partial<AppSettings>) => void;
   /** Sync hooks (used by AccountProvider). */
@@ -158,9 +162,9 @@ export function ProgressProvider({ children }: { children: ReactNode }) {
     return { result, completion: summarizeCompletion(result, next, dailyKeyFor(now), THEMES.length, savesRef.current) };
   }, []);
 
-  const saveStreak = useCallback((day: string) => {
+  const saveStreak = useCallback((day: string, id: string = randomUUID()) => {
     if (savesRef.current.some((s) => s.day === day)) return;
-    const save: StreakSave = { id: randomUUID(), day, savedAt: new Date().toISOString(), syncedAt: null };
+    const save: StreakSave = { id, day, savedAt: new Date().toISOString(), syncedAt: null };
     const next = [...savesRef.current, save];
     savesRef.current = next;
     setStreakSaves(next);

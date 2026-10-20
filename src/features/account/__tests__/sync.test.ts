@@ -69,25 +69,20 @@ describe('syncResults', () => {
 });
 
 describe('syncStreakSaves', () => {
-  it('uploads new saves once and returns every save on the server', async () => {
-    const rows: StreakSaveRow[] = [{ id: 'remote', day: '2026-10-10', saved_at: '2026-10-11T08:00:00.000Z', uploaded_at: '2026-10-11T08:00:01.000Z' }];
-    const api: StreakSaveApi = {
-      async upload(batch) {
-        for (const row of batch) if (!rows.some((r) => r.id === row.id)) rows.push({ ...row, uploaded_at: '2026-10-20T09:00:00.000Z' });
-      },
-      async pullAll() {
-        return [...rows];
-      },
-    };
-    const local: StreakSave = { id: 'local', day: '2026-10-19', savedAt: '2026-10-20T08:30:00.000Z', syncedAt: null };
-    const out = await syncStreakSaves(api, [local]);
-    expect(out.uploadedIds).toEqual(['local']);
-    expect(out.downloaded.map((s) => s.id).sort()).toEqual(['local', 'remote']);
-    expect(out.downloaded.find((s) => s.id === 'remote')).toEqual({ id: 'remote', day: '2026-10-10', savedAt: '2026-10-11T08:00:00.000Z', syncedAt: '2026-10-11T08:00:01.000Z' });
+  it('downloads verified saves and marks local ones synced only once the server has them', async () => {
+    // The server only has saves Google verified (created by admob-ssv).
+    const rows: StreakSaveRow[] = [
+      { id: 'remote', day: '2026-10-10', saved_at: '2026-10-11T08:00:00.000Z', uploaded_at: '2026-10-11T08:00:01.000Z' },
+      { id: 'verified', day: '2026-10-19', saved_at: '2026-10-20T08:30:00.000Z', uploaded_at: '2026-10-20T08:30:02.000Z' },
+    ];
+    const api: StreakSaveApi = { pullAll: async () => [...rows] };
+    const verified: StreakSave = { id: 'verified', day: '2026-10-19', savedAt: '2026-10-20T08:30:00.000Z', syncedAt: null };
+    const notYet: StreakSave = { id: 'waiting', day: '2026-10-12', savedAt: '2026-10-13T09:00:00.000Z', syncedAt: null };
 
-    // Uploading again (e.g. after a failed apply) doesn't duplicate.
-    await syncStreakSaves(api, [local]);
-    expect(rows).toHaveLength(2);
+    const out = await syncStreakSaves(api, [verified, notYet]);
+    expect(out.uploadedIds).toEqual(['verified']);
+    expect(out.downloaded.map((s) => s.id).sort()).toEqual(['remote', 'verified']);
+    expect(out.downloaded.find((s) => s.id === 'remote')).toEqual({ id: 'remote', day: '2026-10-10', savedAt: '2026-10-11T08:00:00.000Z', syncedAt: '2026-10-11T08:00:01.000Z' });
   });
 });
 

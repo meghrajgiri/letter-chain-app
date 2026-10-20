@@ -9,7 +9,7 @@ Never put the Supabase **secret / service_role key** or the **database password*
 
 1. Supabase dashboard → **SQL Editor** → **New query**.
 2. Paste the whole of [`supabase/migrations/20261005000000_init.sql`](../supabase/migrations/20261005000000_init.sql) and click **Run**.
-3. Run [`supabase/migrations/20261020000000_streak_saves.sql`](../supabase/migrations/20261020000000_streak_saves.sql) the same way (streak saves).
+3. Run [`supabase/migrations/20261020000000_streak_saves.sql`](../supabase/migrations/20261020000000_streak_saves.sql), then [`20261021000000_streak_saves_verified.sql`](../supabase/migrations/20261021000000_streak_saves_verified.sql), the same way (streak saves; only the server may create them).
 4. Check **Table Editor**: `profiles`, `game_results` and `streak_saves` exist, each with a shield icon (RLS on).
 
 The script is safe to run again.
@@ -137,3 +137,20 @@ supabase functions deploy publish-daily --no-verify-jwt --use-api
 ```
 
 Run it by hand for a specific date (same path as the schedule): in the SQL editor, run the `net.http_post(...)` from the migration with `?date=YYYY-MM-DD` appended to the URL; responses land in `net._http_response`.
+
+## Streak saves: AdMob server-side verification
+
+Streak saves are created only by the `admob-ssv` Edge Function, when Google's servers confirm a player watched the rewarded ad to the end (`src/features/ads/ssv.ts`, bundled into the function).
+
+1. Build and deploy (no JWT: Google calls it without one; the ECDSA signature is the authentication):
+
+   ```bash
+   npm run build:ssv
+   supabase db push --linked
+   supabase functions deploy admob-ssv --no-verify-jwt --use-api
+   ```
+
+2. AdMob → Apps → Letter Chain → Ad units → **Streak save** → *Edit* → **Server-side verification** → callback URL:
+   `https://wslyfakxemgoluqupofu.supabase.co/functions/v1/admob-ssv`, then **Verify URL** (expects HTTP 200).
+3. Check: watch a streak-save ad on a signed-in test device; a row appears in `streak_saves` within seconds, and the function logs show no `bad signature`.
+

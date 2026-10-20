@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useLayoutEffect, useRef } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef } from 'react';
 import { useRewardedAd } from 'react-native-google-mobile-ads';
 
 import { holdMusic } from '../feedback/music';
@@ -17,13 +17,24 @@ type Options = {
   onReward: () => void;
   /** Called when the ad closes, or when it failed to show (`failed`), e.g. to resume the clock. */
   onClosed?: (outcome: { failed: boolean }) => void;
+  /**
+   * Sent to Google with the ad; Google passes it to our admob-ssv Edge Function
+   * once the reward is earned (server-side verification). Changing it reloads the ad.
+   */
+  serverSideVerification?: { userId: string; customData: string };
 };
 
 /** A rewarded ad (a hint, a streak save…). `available` is true once an ad is ready to show. */
-export function useRewarded({ unit, enabled, onReward, onClosed }: Options): { available: boolean; show: () => void } {
+export function useRewarded({ unit, enabled, onReward, onClosed, serverSideVerification }: Options): { available: boolean; show: () => void } {
   const { ready } = useAds();
   const active = ready && enabled;
-  const { status, show, load, earnedReward } = useRewardedAd({ adUnitId: AD_UNITS[unit], autoLoad: active });
+  const ssvUser = serverSideVerification?.userId;
+  const ssvData = serverSideVerification?.customData;
+  const requestOptions = useMemo(
+    () => (ssvUser ? { serverSideVerificationOptions: { userId: ssvUser, customData: ssvData } } : undefined),
+    [ssvUser, ssvData],
+  );
+  const { status, show, load, earnedReward } = useRewardedAd({ adUnitId: AD_UNITS[unit], autoLoad: active, requestOptions });
 
   const latest = useRef({ onReward, onClosed });
   useLayoutEffect(() => {

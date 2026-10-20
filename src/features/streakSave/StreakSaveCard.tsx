@@ -1,3 +1,4 @@
+import { randomUUID } from 'expo-crypto';
 import { useEffect, useRef, useState } from 'react';
 import { Platform, StyleSheet, View } from 'react-native';
 
@@ -6,6 +7,8 @@ import { Button } from '@/components/ui/Button';
 import { Icon } from '@/components/ui/Icon';
 import { Pop } from '@/components/ui/Pop';
 import { useToast } from '@/components/ui/Toast';
+import { useAccount } from '@/features/account/AccountProvider';
+import type { StreakSaveCustomData } from '@/features/ads/ssv';
 import { useRewarded } from '@/features/ads/useRewarded';
 import { playFeedback } from '@/features/feedback/feedback';
 import { SAVE_COOLDOWN_DAYS, type StreakSaveOffer } from '@/features/progress';
@@ -14,42 +17,66 @@ import { LIP, colors, radius, shadows, spacing } from '@/theme/tokens';
 
 /** How long "Loading ad…" may show before we say there's no ad right now (no fill, no consent, offline). */
 const AD_WAIT_MS = 12_000;
+/** Google's verification callback usually lands within seconds; sync again after these delays to pick it up. */
+const VERIFY_SYNC_DELAYS_MS = [8_000, 30_000];
 
 /**
  * "Save your streak" on Home: shown the day after a missed daily (rules in
  * progress/streakSave.ts). Watching a rewarded ad to the end fills the missed
  * day; "Not now" hides it until the next offer.
+ *
+ * Signed in, the save only reaches the server through Google's server-side
+ * verification (admob-ssv), so it can't be faked without watching the ad.
+ * Guests' saves stay on their device.
  */
 export function StreakSaveCard() {
-  const { summary, saveStreak, settings, updateSettings } = useProgress();
+  const { summary, settings } = useProgress();
+  const live = summary.streakSave && settings.streakSaveDismissed !== summary.streakSave.day ? summary.streakSave : null;
+  // While an ad plays, keep showing its day even if the offer changes underneath.
+  const [busyDay, setBusyDay] = useState<string | null>(null);
+  const day = busyDay ?? live?.day ?? null;
+  if (Platform.OS === 'web' || !day) return null;
+  // Keyed by day: each offer gets its own save id (sent to Google with the ad).
+  return <SaveOffer key={day} live={live?.day === day ? live : null} onBusy={setBusyDay} />;
+}
+
+type Pending = StreakSaveOffer & { todayDone: boolean };
+
+function SaveOffer({ live, onBusy }: { live: StreakSaveOffer | null; onBusy: (day: string | null) => void }) {
+  const { summary, saveStreak, updateSettings } = useProgress();
+  const account = useAccount();
   const toast = useToast();
-  // The offer as it was when the player pressed Watch. It keeps the card (and its
-  // ad) mounted until the ad closes, and the reward still applies if the day rolls
-  // over, a sync changes the offer, or the save itself clears the offer mid-ad.
-  type Pending = StreakSaveOffer & { todayDone: boolean };
+  const [saveId] = useState(() => randomUUID());
+
+  // The offer as it was when the player pressed Watch: the reward still applies if
+  // the day rolls over, a sync changes the offer, or the save itself clears it mid-ad.
   const [pending, setPendingState] = useState<Pending | null>(null);
   // Mirrors `pending` for the ad callbacks, which can fire before a re-render.
   const pendingRef = useRef<Pending | null>(null);
   const setPending = (next: Pending | null) => {
     pendingRef.current = next;
     setPendingState(next);
+    onBusy(next?.day ?? null);
   };
   const rewarded = useRef(false);
 
-  const live = summary.streakSave && settings.streakSaveDismissed !== summary.streakSave.day ? summary.streakSave : null;
   const offer = pending ?? live;
-  const visible = Platform.OS !== 'web' && offer !== null;
+  const userId = account.user?.id;
+  const customData: StreakSaveCustomData | null = offer ? { saveId, day: offer.day } : null;
   const ad = useRewarded({
     unit: 'streakSave',
-    enabled: visible,
+    enabled: offer !== null,
+    serverSideVerification: userId && customData ? { userId, customData: JSON.stringify(customData) } : undefined,
     onReward: () => {
       const saved = pendingRef.current;
       if (!saved) return;
       rewarded.current = true;
-      saveStreak(saved.day);
+      saveStreak(saved.day, saveId);
       playFeedback('complete');
       // The run, the saved day, and today if it was already played.
       toast.show(`Streak saved! Your ${saved.streak + 1 + (saved.todayDone ? 1 : 0)}-day streak lives on`);
+      // Pick up the verified copy once Google's callback has reached the server.
+      if (userId) for (const delay of VERIFY_SYNC_DELAYS_MS) setTimeout(() => account.syncNow(), delay);
     },
     onClosed: ({ failed }) => {
       if (failed) {
@@ -66,7 +93,7 @@ export function StreakSaveCard() {
   });
 
   // Rewarded ads can be unavailable for a while (no fill, ads not allowed yet, offline).
-  const waiting = visible && !ad.available && !pending;
+  const waiting = offer !== null && !ad.available && !pending;
   const [timedOut, setTimedOut] = useState(false);
   useEffect(() => {
     if (!waiting) return;
@@ -75,7 +102,7 @@ export function StreakSaveCard() {
   }, [waiting]);
   const waitedTooLong = waiting && timedOut;
 
-  if (!visible || !offer) return null;
+  if (!offer) return null;
 
   return (
     <Pop>

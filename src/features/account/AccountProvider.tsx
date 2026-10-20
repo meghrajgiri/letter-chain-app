@@ -62,12 +62,6 @@ function serverApi(userId: string): SyncApi {
 
 function streakSaveApi(userId: string): StreakSaveApi {
   return {
-    async upload(rows) {
-      const { error } = await supabase
-        .from('streak_saves')
-        .upsert(rows.map((r) => ({ ...r, user_id: userId })), { onConflict: 'id', ignoreDuplicates: true });
-      if (error) throw error;
-    },
     async pullAll() {
       const { data, error } = await supabase.from('streak_saves').select('id, day, saved_at, uploaded_at').eq('user_id', userId).order('saved_at');
       if (error) throw error;
