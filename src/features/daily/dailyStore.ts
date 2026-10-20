@@ -16,6 +16,10 @@ import { DAILY_FORMAT_VERSION, parseDailyRow } from './remoteDaily';
 const CACHE_KEY = 'letterchain.dailies.v1';
 /** Server rows kept on the device: the newest few days (today, tomorrow, recent). */
 const CACHE_DAYS = 5;
+/** When we last re-checked cached days for corrected re-publishes. */
+const CHECKED_KEY = 'letterchain.dailies.checkedAt';
+/** Cached days are re-checked at most this often; missing days are always fetched. */
+const RECHECK_MS = 6 * 60 * 60 * 1000;
 
 /** Valid server rows by date, plus their parsed dailies. */
 const rows = new Map<string, unknown>();
@@ -64,23 +68,47 @@ function saveCache() {
   }
 }
 
+function lastChecked(): number {
+  try {
+    return Number(storage()?.getItem(CHECKED_KEY)) || 0;
+  } catch {
+    return 0;
+  }
+}
+
+function setLastChecked(time: number) {
+  try {
+    storage()?.setItem(CHECKED_KEY, String(time));
+  } catch {
+    // Not fatal: we just re-check sooner.
+  }
+}
+
 /** The daily for a UTC date: the server copy if we have one, otherwise generated on the device. */
 export function resolveDaily(key: string): DailyPuzzle {
   loadCache();
   return dailies.get(key) ?? getDailyPuzzle(key);
 }
 
-/** Fetches the server copies of the given days (e.g. today and tomorrow). Never throws. */
+/** Fetches the server copies of the given days, today first (e.g. today and tomorrow). Never throws. */
 export async function refreshDailies(keys: readonly string[]): Promise<void> {
   if (!supabaseConfigured || keys.length === 0) return;
   loadCache();
+  // Other cached days are only re-checked every few hours, so foregrounding
+  // the app doesn't download the same puzzles again. Today (keys[0]) is always
+  // fetched so a corrected re-publish reaches players straight away.
+  const now = Date.now();
+  const recheck = now - lastChecked() >= RECHECK_MS;
+  const wanted = recheck ? keys : keys.filter((key, i) => i === 0 || !dailies.has(key));
+  if (wanted.length === 0) return;
   try {
     const { data, error } = await supabase
       .from('daily_puzzles')
       .select('date, mode, theme, theme_name, words, puzzle, format_version, source')
-      .in('date', [...keys])
+      .in('date', [...wanted])
       .lte('format_version', DAILY_FORMAT_VERSION);
     if (error || !data) return;
+    if (recheck) setLastChecked(now);
     let changed = false;
     for (const row of data) changed = accept(row) || changed;
     if (!changed) return;
