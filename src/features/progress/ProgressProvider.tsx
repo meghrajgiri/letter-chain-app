@@ -43,7 +43,8 @@ type ProgressApi = {
     pending: () => GameResult[];
     apply: (outcome: { uploadedIds: readonly string[]; downloaded: readonly GameResult[]; syncedAt: string }) => Promise<void>;
     pendingSaves: () => StreakSave[];
-    applySaves: (outcome: { uploadedIds: readonly string[]; downloaded: readonly StreakSave[]; syncedAt: string }) => Promise<void>;
+    /** `confirmedIds`: local saves whose Google-verified copy is now on the server. */
+    applySaves: (outcome: { confirmedIds: readonly string[]; downloaded: readonly StreakSave[]; syncedAt: string }) => Promise<void>;
     clearSynced: () => Promise<void>;
     clearAll: () => Promise<void>;
     readValue: (key: string) => Promise<string | null>;
@@ -192,22 +193,23 @@ export function ProgressProvider({ children }: { children: ReactNode }) {
         for (const r of fresh) await s.addResult(r);
       },
       pendingSaves: () => savesRef.current.filter((s) => !s.syncedAt),
-      async applySaves({ uploadedIds, downloaded, syncedAt }) {
-        const { next, fresh } = mergeSynced(savesRef.current, uploadedIds, downloaded, syncedAt, (s) => s.savedAt);
+      async applySaves({ confirmedIds, downloaded, syncedAt }) {
+        const { next, fresh } = mergeSynced(savesRef.current, confirmedIds, downloaded, syncedAt, (s) => s.savedAt);
         savesRef.current = next;
         setStreakSaves(next);
         const s = store.current;
         if (!s) return;
-        await s.markStreakSavesSynced(uploadedIds, syncedAt);
+        await s.markStreakSavesSynced(confirmedIds, syncedAt);
         for (const save of fresh) await s.addStreakSave(save);
       },
       async clearSynced() {
         const next = resultsRef.current.filter((r) => !r.syncedAt);
         resultsRef.current = next;
         setResults(next);
-        const saves = savesRef.current.filter((s) => !s.syncedAt);
-        savesRef.current = saves;
-        setStreakSaves(saves);
+        // Every streak save goes: unsynced ones may still be waiting for Google's
+        // verification and belong to the account that is signing out.
+        savesRef.current = [];
+        setStreakSaves([]);
         await store.current?.deleteSyncedResults();
       },
       async clearAll() {

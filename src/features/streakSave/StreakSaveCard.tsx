@@ -17,8 +17,6 @@ import { LIP, colors, radius, shadows, spacing } from '@/theme/tokens';
 
 /** How long "Loading ad…" may show before we say there's no ad right now (no fill, no consent, offline). */
 const AD_WAIT_MS = 12_000;
-/** Google's verification callback usually lands within seconds; sync again after these delays to pick it up. */
-const VERIFY_SYNC_DELAYS_MS = [8_000, 30_000];
 
 /**
  * "Save your streak" on Home: shown the day after a missed daily (rules in
@@ -40,7 +38,8 @@ export function StreakSaveCard() {
   return <SaveOffer key={day} live={live?.day === day ? live : null} onBusy={setBusyDay} />;
 }
 
-type Pending = StreakSaveOffer & { todayDone: boolean };
+/** `userId`: who the ad was loaded for (Google's verification callback names them). */
+type Pending = StreakSaveOffer & { todayDone: boolean; userId: string | null };
 
 function SaveOffer({ live, onBusy }: { live: StreakSaveOffer | null; onBusy: (day: string | null) => void }) {
   const { summary, saveStreak, updateSettings } = useProgress();
@@ -61,11 +60,14 @@ function SaveOffer({ live, onBusy }: { live: StreakSaveOffer | null; onBusy: (da
   const rewarded = useRef(false);
 
   const offer = pending ?? live;
-  const userId = account.user?.id;
+  // Frozen while an ad is in progress: changing the verification options reloads
+  // (and so destroys) the ad, which would lose the reward if it was showing.
+  const userId = pending ? pending.userId : (account.user?.id ?? null);
   const customData: StreakSaveCustomData | null = offer ? { saveId, day: offer.day } : null;
   const ad = useRewarded({
     unit: 'streakSave',
-    enabled: offer !== null,
+    // Wait for the saved session: an ad loaded before it knows the player can't be verified.
+    enabled: offer !== null && account.status !== 'loading',
     serverSideVerification: userId && customData ? { userId, customData: JSON.stringify(customData) } : undefined,
     onReward: () => {
       const saved = pendingRef.current;
@@ -75,8 +77,7 @@ function SaveOffer({ live, onBusy }: { live: StreakSaveOffer | null; onBusy: (da
       playFeedback('complete');
       // The run, the saved day, and today if it was already played.
       toast.show(`Streak saved! Your ${saved.streak + 1 + (saved.todayDone ? 1 : 0)}-day streak lives on`);
-      // Pick up the verified copy once Google's callback has reached the server.
-      if (userId) for (const delay of VERIFY_SYNC_DELAYS_MS) setTimeout(() => account.syncNow(), delay);
+      // AccountProvider picks up the verified copy once Google's callback reaches the server.
     },
     onClosed: ({ failed }) => {
       if (failed) {
@@ -125,7 +126,7 @@ function SaveOffer({ live, onBusy }: { live: StreakSaveOffer | null; onBusy: (da
           icon="smart-display"
           disabled={!ad.available || pending !== null}
           onPress={() => {
-            setPending({ ...offer, todayDone: summary.streak.todayDone });
+            setPending({ ...offer, todayDone: summary.streak.todayDone, userId });
             rewarded.current = false;
             ad.show();
           }}

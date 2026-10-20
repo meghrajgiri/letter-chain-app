@@ -1,4 +1,4 @@
-import { derToRaw, streakSaveClaim, verifyCallback, type VerifierKey } from '../ssv';
+import { cooldownBlocks, derToRaw, streakSaveClaim, verifyCallback, type VerifierKey } from '../ssv';
 
 const toBase64 = (bytes: Uint8Array) => btoa(String.fromCharCode(...bytes));
 const toBase64Url = (bytes: Uint8Array) => toBase64(bytes).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
@@ -114,6 +114,14 @@ describe('streakSaveClaim', () => {
     expect(await claim({ ad_unit: 'ca-app-pub-6296571874627648/2808311873' })).toMatchObject({ day: '2026-10-19' });
   });
 
+  it('tolerates a phone clock a few minutes fast near UTC midnight', async () => {
+    // Google: 10-20 23:58 UTC. The phone (3 min fast) already thinks it's 10-21, so it saves 10-20.
+    const nearMidnight = String(Date.UTC(2026, 9, 20, 23, 58));
+    expect(await claim({ timestamp: nearMidnight, custom_data: JSON.stringify({ saveId: SAVE_ID, day: '2026-10-20' }) })).toMatchObject({ day: '2026-10-20' });
+    // But not a whole day ahead.
+    expect(await claim({ custom_data: JSON.stringify({ saveId: SAVE_ID, day: '2026-10-20' }) })).toHaveProperty('error');
+  });
+
   it('allows the daily rolling over during the ad', async () => {
     expect(await claim({ timestamp: String(Date.UTC(2026, 9, 21, 0, 1)) })).toMatchObject({ day: '2026-10-19' });
   });
@@ -124,5 +132,19 @@ describe('streakSaveClaim', () => {
     expect(await claim({ custom_data: JSON.stringify({ saveId: SAVE_ID, day: '2026-10-01' }) })).toHaveProperty('error');
     expect(await claim({ custom_data: 'not json' })).toHaveProperty('error');
     expect(await claim({ custom_data: JSON.stringify({ saveId: 'x', day: '2026-10-19' }) })).toHaveProperty('error');
+  });
+});
+
+describe('cooldownBlocks', () => {
+  const none = new Set<string>();
+  it('allows one save in any 7 days, like the app', () => {
+    expect(cooldownBlocks('2026-10-19', [], none)).toBe(false);
+    expect(cooldownBlocks('2026-10-19', ['2026-10-13'], none)).toBe(true); // 6 days apart
+    expect(cooldownBlocks('2026-10-19', ['2026-10-12'], none)).toBe(false); // 7 days apart
+  });
+
+  it('ignores the same save (a retry) and saves for days that were played', () => {
+    expect(cooldownBlocks('2026-10-19', ['2026-10-19'], none)).toBe(false);
+    expect(cooldownBlocks('2026-10-19', ['2026-10-15'], new Set(['2026-10-15']))).toBe(false);
   });
 });

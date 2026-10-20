@@ -14,12 +14,13 @@ import {
   type InterstitialState,
   type RewardedUnit,
 } from './adPolicy';
+import { STREAK_SAVE_AD_UNIT } from './ssv';
 
 /** Real ad units in release builds; Google's test units in development (never click real ads). */
 export const AD_UNITS = {
   rewardedHint: __DEV__ ? TestIds.REWARDED : 'ca-app-pub-6296571874627648/6139609264',
   betweenPuzzles: __DEV__ ? TestIds.INTERSTITIAL : 'ca-app-pub-6296571874627648/8715913553',
-  streakSave: __DEV__ ? TestIds.REWARDED : 'ca-app-pub-6296571874627648/2808311873',
+  streakSave: __DEV__ ? TestIds.REWARDED : STREAK_SAVE_AD_UNIT,
 } as const satisfies Record<RewardedUnit | 'betweenPuzzles', string>;
 
 export type AdsApi = {

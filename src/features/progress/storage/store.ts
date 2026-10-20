@@ -154,7 +154,7 @@ export async function openProgressStore(): Promise<ProgressStore> {
     },
     async deleteSyncedResults() {
       await db.runAsync('DELETE FROM game_results WHERE synced_at IS NOT NULL');
-      await db.runAsync('DELETE FROM streak_saves WHERE synced_at IS NOT NULL');
+      await db.runAsync('DELETE FROM streak_saves');
     },
     async deleteAllResults() {
       await db.runAsync('DELETE FROM game_results');

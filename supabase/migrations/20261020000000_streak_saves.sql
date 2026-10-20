@@ -21,10 +21,10 @@ drop policy if exists "streak saves: read own" on public.streak_saves;
 create policy "streak saves: read own" on public.streak_saves
   for select to authenticated using ((select auth.uid()) = user_id);
 
+-- No insert policy or grant for players: saves are created only by the admob-ssv
+-- Edge Function (see 20261021000000_streak_saves_verified.sql), so re-running
+-- this script can never reopen client inserts.
 drop policy if exists "streak saves: insert own" on public.streak_saves;
-create policy "streak saves: insert own" on public.streak_saves
-  for insert to authenticated with check ((select auth.uid()) = user_id);
-
-grant select, insert on public.streak_saves to authenticated;
+grant select on public.streak_saves to authenticated;
 revoke all on public.streak_saves from anon;
 revoke truncate, references, trigger on public.streak_saves from authenticated;

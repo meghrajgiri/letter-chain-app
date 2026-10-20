@@ -72,6 +72,11 @@ function streakSaveApi(userId: string): StreakSaveApi {
 
 const cursorKey = (userId: string) => `sync.cursor.${userId}`;
 
+/** Google's verification callback usually lands within seconds; sync again after these delays to pick it up. */
+const VERIFY_SYNC_DELAYS_MS = [8_000, 30_000];
+/** Only a save made this recently is still worth waiting for. */
+const VERIFY_WINDOW_MS = 2 * 60_000;
+
 /**
  * Optional Google account on top of local-first progress
  * (docs/progression-and-sync.md): guests keep everything on the device;
@@ -154,6 +159,19 @@ export function AccountProvider({ children }: { children: ReactNode }) {
     });
     return () => sub.remove();
   }, [syncNow]);
+
+  // A new streak save becomes "synced" only when Google's verification callback has
+  // created its server copy, usually within seconds: check back a couple of times.
+  // Tied to this user, so signing out or switching accounts cancels the checks.
+  const newestPendingSave = streakSaves.findLast((s) => !s.syncedAt);
+  const awaitingId = newestPendingSave?.id ?? null;
+  const awaitingSince = newestPendingSave?.savedAt ?? null;
+  useEffect(() => {
+    if (!user || !awaitingId || !awaitingSince) return;
+    if (Date.now() - Date.parse(awaitingSince) > VERIFY_WINDOW_MS) return; // an old one (e.g. a guest save) won't verify
+    const timers = VERIFY_SYNC_DELAYS_MS.map((delay) => setTimeout(() => syncNow(), delay));
+    return () => timers.forEach(clearTimeout);
+  }, [user, awaitingId, awaitingSince, syncNow]);
 
   const signInWithGoogle = useCallback(async () => {
     if (!supabaseConfigured) throw new Error('Accounts aren’t set up yet');

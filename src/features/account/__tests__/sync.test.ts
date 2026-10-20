@@ -80,7 +80,7 @@ describe('syncStreakSaves', () => {
     const notYet: StreakSave = { id: 'waiting', day: '2026-10-12', savedAt: '2026-10-13T09:00:00.000Z', syncedAt: null };
 
     const out = await syncStreakSaves(api, [verified, notYet]);
-    expect(out.uploadedIds).toEqual(['verified']);
+    expect(out.confirmedIds).toEqual(['verified']);
     expect(out.downloaded.map((s) => s.id).sort()).toEqual(['remote', 'verified']);
     expect(out.downloaded.find((s) => s.id === 'remote')).toEqual({ id: 'remote', day: '2026-10-10', savedAt: '2026-10-11T08:00:00.000Z', syncedAt: '2026-10-11T08:00:01.000Z' });
   });

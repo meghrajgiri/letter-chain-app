@@ -15,7 +15,7 @@ export type ProgressStore = {
   loadStreakSaves(): Promise<StreakSave[]>;
   addStreakSave(save: StreakSave): Promise<void>;
   markStreakSavesSynced(ids: readonly string[], syncedAt: string): Promise<void>;
-  /** Removes results and streak saves that are safely on the server (used on sign-out). */
+  /** Removes results that are safely on the server, and every streak save (used on sign-out). */
   deleteSyncedResults(): Promise<void>;
   /** Removes every result and streak save (used after deleting the account). */
   deleteAllResults(): Promise<void>;

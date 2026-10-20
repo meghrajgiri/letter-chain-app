@@ -71,7 +71,7 @@ export async function openProgressStore(): Promise<ProgressStore> {
       save();
     },
     async deleteSyncedResults() {
-      data = { ...data, results: data.results.filter((r) => !r.syncedAt), streakSaves: data.streakSaves.filter((s) => !s.syncedAt) };
+      data = { ...data, results: data.results.filter((r) => !r.syncedAt), streakSaves: [] };
       save();
     },
     async deleteAllResults() {

@@ -63,7 +63,7 @@ export function fromRow(row: ResultRow): GameResult {
 
 /**
  * Applies a sync outcome to a local list of append-only records: marks the
- * uploaded ones synced and adds downloaded ones not already here (by id),
+ * uploaded (or server-confirmed) ones synced and adds downloaded ones not already here (by id),
  * sorted by `sortKey`. `fresh` is what still needs saving on the device.
  */
 export function mergeSynced<T extends { id: string; syncedAt?: string | null }>(
@@ -143,8 +143,8 @@ export type StreakSaveApi = {
 export async function syncStreakSaves(
   api: StreakSaveApi,
   pending: readonly StreakSave[],
-): Promise<{ uploadedIds: string[]; downloaded: StreakSave[] }> {
+): Promise<{ confirmedIds: string[]; downloaded: StreakSave[] }> {
   const downloaded = (await api.pullAll()).map(saveFromRow);
   const onServer = new Set(downloaded.map((s) => s.id));
-  return { uploadedIds: pending.filter((s) => onServer.has(s.id)).map((s) => s.id), downloaded };
+  return { confirmedIds: pending.filter((s) => onServer.has(s.id)).map((s) => s.id), downloaded };
 }

@@ -5,10 +5,15 @@
  * https://developers.google.com/admob/android/ssv
  *
  * Pure (WebCrypto only): unit-tested here, and bundled into the Edge Function
- * by `npm run build:ssv`.
+ * by `npm run build:ssv` (rebuild and redeploy it after changing this file).
  */
+import { addDays } from '../progress/dates';
+import { SAVE_COOLDOWN_DAYS } from '../progress/streakSave';
 
 export const VERIFIER_KEYS_URL = 'https://www.gstatic.com/admob/reward/verifier-keys.json';
+
+/** The "Streak save" rewarded unit, shared by the app (AD_UNITS) and the admob-ssv function. */
+export const STREAK_SAVE_AD_UNIT = 'ca-app-pub-6296571874627648/2808311873';
 
 /** One of Google's signing keys (`base64` is the DER-encoded SPKI public key). */
 export type VerifierKey = { keyId: number; base64: string };
@@ -22,6 +27,8 @@ export type StreakSaveClaim = { id: string; userId: string; day: string; savedAt
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const DAY = /^\d{4}-\d{2}-\d{2}$/;
 const DAY_MS = 86_400_000;
+/** A phone clock this far ahead of Google's near UTC midnight still lands on the right day. */
+const CLOCK_SKEW_MS = 15 * 60_000;
 
 function base64ToBytes(value: string): Uint8Array<ArrayBuffer> {
   // Signatures are URL-safe base64 without padding; keys are standard base64.
@@ -98,9 +105,11 @@ const utcDay = (ms: number) => new Date(ms).toISOString().slice(0, 10);
  * saved day must be the day before the reward (or two days before, if the daily
  * rolled over while the ad played), matching the app's one-missed-day rule.
  */
-export function streakSaveClaim(params: URLSearchParams, adUnit: string): StreakSaveClaim | { error: string } {
+export function streakSaveClaim(params: URLSearchParams, adUnit: string = STREAK_SAVE_AD_UNIT): StreakSaveClaim | { error: string } {
   const unit = params.get('ad_unit') ?? '';
-  if (unit !== adUnit && !unit.endsWith(`/${adUnit}`)) return { error: `other ad unit ${unit}` };
+  // Callbacks may carry the full id (ca-app-pub-…/123) or just its number.
+  const unitNumber = (id: string) => id.slice(id.lastIndexOf('/') + 1);
+  if (!unit || unitNumber(unit) !== unitNumber(adUnit)) return { error: `other ad unit ${unit}` };
   const userId = params.get('user_id') ?? '';
   if (!UUID.test(userId)) return { error: 'no user' };
   const transactionId = params.get('transaction_id') ?? '';
@@ -116,7 +125,18 @@ export function streakSaveClaim(params: URLSearchParams, adUnit: string): Streak
   }
   if (typeof data.saveId !== 'string' || !UUID.test(data.saveId)) return { error: 'bad save id' };
   if (typeof data.day !== 'string' || !DAY.test(data.day)) return { error: 'bad day' };
-  if (data.day !== utcDay(timestamp - DAY_MS) && data.day !== utcDay(timestamp - 2 * DAY_MS)) return { error: `implausible day ${data.day}` };
+  const plausible = [timestamp - DAY_MS, timestamp - 2 * DAY_MS, timestamp + CLOCK_SKEW_MS - DAY_MS].map(utcDay);
+  if (!plausible.includes(data.day)) return { error: `implausible day ${data.day}` };
 
   return { id: data.saveId, userId, day: data.day, savedAt: new Date(timestamp).toISOString(), transactionId };
+}
+
+/**
+ * The server's copy of the app's once-per-SAVE_COOLDOWN_DAYS rule (see
+ * progress/streakSave.ts), so a modified app can't save every day. Other saves
+ * whose day was in fact played don't count, as in the app.
+ */
+export function cooldownBlocks(day: string, otherSaveDays: readonly string[], playedDays: ReadonlySet<string>): boolean {
+  const start = addDays(day, -(SAVE_COOLDOWN_DAYS - 1));
+  return otherSaveDays.some((d) => d !== day && d >= start && d <= day && !playedDays.has(d));
 }
