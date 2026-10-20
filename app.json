@@ -53,7 +53,16 @@
           "delayAppMeasurementInit": true
         }
       ],
-      "@sentry/react-native"
+      "@sentry/react-native",
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "enableMinifyInReleaseBuilds": true,
+            "enableShrinkResourcesInReleaseBuilds": true
+          }
+        }
+      ]
     ],
     "scheme": "letterchain",
     "extra": {
