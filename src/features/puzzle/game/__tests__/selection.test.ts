@@ -108,13 +108,19 @@ describe('matchSelection', () => {
     expect(matchSelection(grid, { row: 0, col: 0 }, { row: 2, col: 2 }, words, new Set())).toEqual({ word: 'COW', reversed: false });
   });
 
-  it('matches a word selected in reverse', () => {
+  it('reports a word selected in reverse as reversed', () => {
     expect(matchSelection(grid, { row: 0, col: 2 }, { row: 0, col: 0 }, words, new Set())).toEqual({ word: 'CAT', reversed: true });
   });
 
   it('matches a vertical word', () => {
     const g: Grid = ['DXX', 'OXX', 'GXX'].map((r) => r.split(''));
     expect(matchSelection(g, { row: 2, col: 0 }, { row: 0, col: 0 }, ['DOG'], new Set())).toEqual({ word: 'DOG', reversed: true });
+  });
+
+  it('prefers a word read forwards over one read backwards on the same line', () => {
+    const g: Grid = ['TOP', 'XXX', 'XXX'].map((r) => r.split(''));
+    // POT comes first in the list but only reads backwards; TOP reads forwards.
+    expect(matchSelection(g, { row: 0, col: 0 }, { row: 0, col: 2 }, ['POT', 'TOP'], new Set())).toEqual({ word: 'TOP', reversed: false });
   });
 
   it('ignores already found words', () => {
