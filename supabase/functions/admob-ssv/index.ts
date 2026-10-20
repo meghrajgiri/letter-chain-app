@@ -8,7 +8,7 @@
 // AdMob: Streak save ad unit → Server-side verification → this function's URL.
 import { createClient } from 'npm:@supabase/supabase-js@2';
 
-import { streakSaveClaim, verifyCallback, VERIFIER_KEYS_URL, type VerifierKey } from './ssv.js';
+import { checkCallback, streakSaveClaim, VERIFIER_KEYS_URL, type VerifierKey } from './ssv.js';
 
 /** The "Streak save" rewarded unit (ca-app-pub-6296571874627648/2808311873). */
 const STREAK_SAVE_AD_UNIT = '2808311873';
@@ -34,10 +34,11 @@ Deno.serve(async (req) => {
   const raw = new URL(req.url).search.slice(1);
   if (!raw) return new Response('ok'); // reachability check
 
-  let valid = await verifyCallback(raw, await verifierKeys());
-  if (!valid) valid = await verifyCallback(raw, await verifierKeys(true)); // maybe a newly rotated key
-  if (!valid) {
-    console.warn('admob-ssv: bad signature');
+  let check = await checkCallback(raw, await verifierKeys());
+  if (check !== 'ok') check = await checkCallback(raw, await verifierKeys(true)); // maybe a newly rotated key
+  if (check !== 'ok') {
+    // The query holds no secrets (ids, a timestamp and Google's public signature); logged to debug mismatches.
+    console.warn(`admob-ssv: bad signature (${check}); url=${req.url}`);
     return new Response('Bad signature', { status: 403 });
   }
 

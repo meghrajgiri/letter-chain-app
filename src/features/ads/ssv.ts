@@ -57,22 +57,30 @@ export function derToRaw(der: Uint8Array, size = 32): Uint8Array<ArrayBuffer> {
  * the signed bytes are everything before `&signature=`.
  */
 export async function verifyCallback(rawQuery: string, keys: readonly VerifierKey[]): Promise<boolean> {
+  return (await checkCallback(rawQuery, keys)) === 'ok';
+}
+
+/** Like `verifyCallback`, but says why a callback failed (for the function's logs). */
+export async function checkCallback(rawQuery: string, keys: readonly VerifierKey[]): Promise<string> {
   const cut = rawQuery.indexOf('&signature=');
-  if (cut < 0) return false;
+  if (cut < 0) return 'no signature parameter';
   const params = new URLSearchParams(rawQuery);
   const signature = params.get('signature');
-  const key = keys.find((k) => String(k.keyId) === params.get('key_id'));
-  if (!signature || !key) return false;
+  const keyId = params.get('key_id');
+  const key = keys.find((k) => String(k.keyId) === keyId);
+  if (!signature) return 'empty signature';
+  if (!key) return `unknown key_id ${keyId} (have ${keys.map((k) => k.keyId).join(', ')})`;
   try {
     const publicKey = await crypto.subtle.importKey('spki', base64ToBytes(key.base64), { name: 'ECDSA', namedCurve: 'P-256' }, false, ['verify']);
-    return await crypto.subtle.verify(
+    const valid = await crypto.subtle.verify(
       { name: 'ECDSA', hash: 'SHA-256' },
       publicKey,
       derToRaw(base64ToBytes(signature)),
       new TextEncoder().encode(rawQuery.slice(0, cut)),
     );
-  } catch {
-    return false;
+    return valid ? 'ok' : 'signature does not match';
+  } catch (error) {
+    return `verify threw: ${error instanceof Error ? error.message : String(error)}`;
   }
 }
 
