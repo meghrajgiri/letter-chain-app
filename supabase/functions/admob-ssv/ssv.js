@@ -29,6 +29,9 @@ function derToRaw(der, size = 32) {
   }
   return out;
 }
+function signedContent(rawQuery, cut) {
+  return decodeURIComponent(rawQuery.slice(0, cut).replace(/\+/g, " "));
+}
 async function verifyCallback(rawQuery, keys) {
   return await checkCallback(rawQuery, keys) === "ok";
 }
@@ -47,7 +50,7 @@ async function checkCallback(rawQuery, keys) {
       { name: "ECDSA", hash: "SHA-256" },
       publicKey,
       derToRaw(base64ToBytes(signature)),
-      new TextEncoder().encode(rawQuery.slice(0, cut))
+      new TextEncoder().encode(signedContent(rawQuery, cut))
     );
     return valid ? "ok" : "signature does not match";
   } catch (error) {

@@ -43,14 +43,32 @@ async function callback(overrides: Record<string, string> = {}): Promise<string>
     user_id: USER_ID,
     ...overrides,
   };
-  const content = Object.entries(params)
-    .map(([k, v]) => `${k}=${encodeURIComponent(v)}`)
+  // Like Google: sign the decoded text, send it URL-encoded (spaces as '+').
+  const decoded = Object.entries(params)
+    .map(([k, v]) => `${k}=${v}`)
     .join('&');
-  const raw = new Uint8Array(await crypto.subtle.sign({ name: 'ECDSA', hash: 'SHA-256' }, privateKey, new TextEncoder().encode(content)));
-  return `${content}&signature=${toBase64Url(rawToDer(raw))}&key_id=1268887`;
+  const sent = Object.entries(params)
+    .map(([k, v]) => `${k}=${encodeURIComponent(v).replace(/%20/g, '+')}`)
+    .join('&');
+  const raw = new Uint8Array(await crypto.subtle.sign({ name: 'ECDSA', hash: 'SHA-256' }, privateKey, new TextEncoder().encode(decoded)));
+  return `${sent}&signature=${toBase64Url(rawToDer(raw))}&key_id=1268887`;
 }
 
+/** A real callback from AdMob's "Verify URL" test (2026-10-20), signed by Google's key 3335741209. */
+const GOOGLE_KEY: VerifierKey = {
+  keyId: 3335741209,
+  base64: 'MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE+nzvoGqvDeB9+SzE6igTl7TyK4JBbglwir9oTcQta8NuG26ZpZFxt+F2NDk7asTE6/2Yc8i1ATcGIqtuS5hv0Q==',
+};
+const GOOGLE_CALLBACK =
+  'ad_network=5450213213286189855&ad_unit=1234567890&reward_amount=1&reward_item=Streak+save&timestamp=1792483995822&transaction_id=123456789' +
+  '&signature=MEYCIQCUURIou_aiMD4H-xMiPkZL16i81YBziNd0KBol_YSioQIhAJusY_nGdKuY9vTBQzsyUND6_VN7VRkJ3KVT82bERbvp&key_id=3335741209';
+
 describe('verifyCallback', () => {
+  it('accepts a real callback signed by Google (decoded content, + as space)', async () => {
+    expect(await verifyCallback(GOOGLE_CALLBACK, [GOOGLE_KEY])).toBe(true);
+    expect(await verifyCallback(GOOGLE_CALLBACK.replace('Streak+save', 'Streak+saves'), [GOOGLE_KEY])).toBe(false);
+  });
+
   it('accepts a correctly signed callback', async () => {
     expect(await verifyCallback(await callback(), keys)).toBe(true);
   });

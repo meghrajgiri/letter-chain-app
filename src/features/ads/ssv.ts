@@ -52,9 +52,16 @@ export function derToRaw(der: Uint8Array, size = 32): Uint8Array<ArrayBuffer> {
 }
 
 /**
+ * What Google signed: the query before `&signature=`, URL-decoded. The signature
+ * covers the decoded text (e.g. `reward_item=Streak save`, sent as `Streak+save`).
+ */
+function signedContent(rawQuery: string, cut: number): string {
+  return decodeURIComponent(rawQuery.slice(0, cut).replace(/\+/g, ' '));
+}
+
+/**
  * Checks Google's signature over the callback. `rawQuery` must be the query
- * string exactly as received (no leading `?`, nothing re-encoded or reordered):
- * the signed bytes are everything before `&signature=`.
+ * string as received (no leading `?`, parameters in their original order).
  */
 export async function verifyCallback(rawQuery: string, keys: readonly VerifierKey[]): Promise<boolean> {
   return (await checkCallback(rawQuery, keys)) === 'ok';
@@ -76,7 +83,7 @@ export async function checkCallback(rawQuery: string, keys: readonly VerifierKey
       { name: 'ECDSA', hash: 'SHA-256' },
       publicKey,
       derToRaw(base64ToBytes(signature)),
-      new TextEncoder().encode(rawQuery.slice(0, cut)),
+      new TextEncoder().encode(signedContent(rawQuery, cut)),
     );
     return valid ? 'ok' : 'signature does not match';
   } catch (error) {
