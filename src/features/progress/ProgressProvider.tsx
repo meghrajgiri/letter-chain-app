@@ -4,6 +4,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import { AppState } from 'react-native';
 
 import { dailyKey as dailyKeyFor } from '../daily/daily';
+import { mergeSynced } from '../account/sync';
 import { setHapticsEnabled } from '../feedback/haptics';
 import { setMusicEnabled } from '../feedback/music';
 import { setSoundEnabled } from '../feedback/sounds';
@@ -178,13 +179,7 @@ export function ProgressProvider({ children }: { children: ReactNode }) {
     () => ({
       pending: () => resultsRef.current.filter((r) => !r.syncedAt),
       async apply({ uploadedIds, downloaded, syncedAt }) {
-        const uploaded = new Set(uploadedIds);
-        const known = new Set(resultsRef.current.map((r) => r.id));
-        const fresh = downloaded.filter((r) => !known.has(r.id));
-        const next = [
-          ...resultsRef.current.map((r) => (uploaded.has(r.id) ? { ...r, syncedAt } : r)),
-          ...fresh,
-        ].sort((a, b) => a.completedAt.localeCompare(b.completedAt));
+        const { next, fresh } = mergeSynced(resultsRef.current, uploadedIds, downloaded, syncedAt, (r) => r.completedAt);
         resultsRef.current = next;
         setResults(next);
         const s = store.current;
@@ -194,12 +189,7 @@ export function ProgressProvider({ children }: { children: ReactNode }) {
       },
       pendingSaves: () => savesRef.current.filter((s) => !s.syncedAt),
       async applySaves({ uploadedIds, downloaded, syncedAt }) {
-        const uploaded = new Set(uploadedIds);
-        const known = new Set(savesRef.current.map((s) => s.id));
-        const fresh = downloaded.filter((s) => !known.has(s.id));
-        const next = [...savesRef.current.map((s) => (uploaded.has(s.id) ? { ...s, syncedAt } : s)), ...fresh].sort((a, b) =>
-          a.savedAt.localeCompare(b.savedAt),
-        );
+        const { next, fresh } = mergeSynced(savesRef.current, uploadedIds, downloaded, syncedAt, (s) => s.savedAt);
         savesRef.current = next;
         setStreakSaves(next);
         const s = store.current;

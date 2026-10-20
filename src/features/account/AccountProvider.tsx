@@ -117,12 +117,22 @@ export function AccountProvider({ children }: { children: ReactNode }) {
       do {
         again.current = false;
         const cursor = await sync.readValue(cursorKey(user.id));
-        const outcome = await syncResults(serverApi(user.id), sync.pending(), cursor);
+        // Results and streak saves talk to the server in parallel and fail
+        // independently: one failing never holds back the other. Local writes
+        // stay one after the other (one SQLite connection, one transaction at a time).
+        const [results, saves] = await Promise.allSettled([
+          syncResults(serverApi(user.id), sync.pending(), cursor),
+          syncStreakSaves(streakSaveApi(user.id), sync.pendingSaves()),
+        ]);
         const syncedAt = new Date().toISOString();
-        await sync.apply({ uploadedIds: outcome.uploadedIds, downloaded: outcome.downloaded, syncedAt });
-        if (outcome.cursor) await sync.writeValue(cursorKey(user.id), outcome.cursor);
-        const saves = await syncStreakSaves(streakSaveApi(user.id), sync.pendingSaves());
-        await sync.applySaves({ ...saves, syncedAt });
+        if (results.status === 'fulfilled') {
+          const outcome = results.value;
+          await sync.apply({ uploadedIds: outcome.uploadedIds, downloaded: outcome.downloaded, syncedAt });
+          if (outcome.cursor) await sync.writeValue(cursorKey(user.id), outcome.cursor);
+        }
+        if (saves.status === 'fulfilled') await sync.applySaves({ ...saves.value, syncedAt });
+        const failure = [results, saves].find((r) => r.status === 'rejected');
+        if (failure) throw failure.reason;
         setLastSyncedAt(syncedAt);
       } while (again.current);
       setSyncState('idle');

@@ -1,5 +1,5 @@
 import type { GameResult, StreakSave } from '../../progress/types';
-import { fromRow, syncResults, syncStreakSaves, toRow, type ResultRow, type StreakSaveApi, type StreakSaveRow, type SyncApi } from '../sync';
+import { fromRow, mergeSynced, syncResults, syncStreakSaves, toRow, type ResultRow, type StreakSaveApi, type StreakSaveRow, type SyncApi } from '../sync';
 
 const result = (id: string, extra: Partial<GameResult> = {}): GameResult => ({
   id,
@@ -88,5 +88,19 @@ describe('syncStreakSaves', () => {
     // Uploading again (e.g. after a failed apply) doesn't duplicate.
     await syncStreakSaves(api, [local]);
     expect(rows).toHaveLength(2);
+  });
+});
+
+describe('mergeSynced', () => {
+  it('marks uploaded items synced, adds new downloads once, and sorts', () => {
+    const local = [result('b', { completedAt: '2026-10-05T12:00:00.000Z' }), result('a', { completedAt: '2026-10-05T11:00:00.000Z' })];
+    const downloaded = [result('a'), result('c', { completedAt: '2026-10-05T10:00:00.000Z' })];
+    const { next, fresh } = mergeSynced(local, ['b'], downloaded, 'NOW', (r) => r.completedAt);
+    expect(next.map((r) => [r.id, r.syncedAt])).toEqual([
+      ['c', null],
+      ['a', null],
+      ['b', 'NOW'],
+    ]);
+    expect(fresh.map((r) => r.id)).toEqual(['c']);
   });
 });

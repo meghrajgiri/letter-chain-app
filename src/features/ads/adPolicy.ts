@@ -7,6 +7,9 @@
  *    times per puzzle.
  */
 
+/** Rewarded placements, each with its own AdMob unit (AD_UNITS in AdsProvider). */
+export type RewardedUnit = 'rewardedHint' | 'streakSave';
+
 export const INTERSTITIAL_EVERY_GAMES = 3;
 export const INTERSTITIAL_MIN_GAP_MS = 3 * 60_000;
 export const MAX_AD_HINTS_PER_PUZZLE = 3;

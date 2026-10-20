@@ -61,6 +61,27 @@ export function fromRow(row: ResultRow): GameResult {
   };
 }
 
+/**
+ * Applies a sync outcome to a local list of append-only records: marks the
+ * uploaded ones synced and adds downloaded ones not already here (by id),
+ * sorted by `sortKey`. `fresh` is what still needs saving on the device.
+ */
+export function mergeSynced<T extends { id: string; syncedAt?: string | null }>(
+  local: readonly T[],
+  uploadedIds: readonly string[],
+  downloaded: readonly T[],
+  syncedAt: string,
+  sortKey: (item: T) => string,
+): { next: T[]; fresh: T[] } {
+  const uploaded = new Set(uploadedIds);
+  const known = new Set(local.map((item) => item.id));
+  const fresh = downloaded.filter((item) => !known.has(item.id));
+  const next = [...local.map((item) => (uploaded.has(item.id) ? { ...item, syncedAt } : item)), ...fresh].sort((a, b) =>
+    sortKey(a).localeCompare(sortKey(b)),
+  );
+  return { next, fresh };
+}
+
 export type SyncApi = {
   /** Insert rows, ignoring ids the server already has. */
   upload(rows: ResultRow[]): Promise<void>;

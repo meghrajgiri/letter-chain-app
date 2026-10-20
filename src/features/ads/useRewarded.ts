@@ -2,21 +2,25 @@ import { useCallback, useEffect, useLayoutEffect, useRef } from 'react';
 import { useRewardedAd } from 'react-native-google-mobile-ads';
 
 import { holdMusic } from '../feedback/music';
+import type { RewardedUnit } from './adPolicy';
 import { AD_UNITS, useAds } from './AdsProvider';
 
+/** After a no-fill or failed load, try again this much later (while still wanted). */
+const RETRY_MS = 30_000;
+
 type Options = {
+  /** Which rewarded unit to load (separate units keep each placement's revenue visible in AdMob). */
+  unit: RewardedUnit;
   /** Load an ad only while it could be offered (e.g. puzzle not finished). */
   enabled: boolean;
   /** Called once when Google confirms the reward was earned. */
   onReward: () => void;
-  /** Called when the ad closes (or fails to show), e.g. to resume the clock. */
-  onClosed?: () => void;
-  /** Which rewarded unit to load (separate units keep each placement's revenue visible in AdMob). */
-  unit?: 'rewardedHint' | 'streakSave';
+  /** Called when the ad closes, or when it failed to show (`failed`), e.g. to resume the clock. */
+  onClosed?: (outcome: { failed: boolean }) => void;
 };
 
-/** A rewarded ad (by default, one that grants a hint). `available` is true once an ad is ready to show. */
-export function useRewardedHint({ enabled, onReward, onClosed, unit = 'rewardedHint' }: Options): { available: boolean; show: () => void } {
+/** A rewarded ad (a hint, a streak save…). `available` is true once an ad is ready to show. */
+export function useRewarded({ unit, enabled, onReward, onClosed }: Options): { available: boolean; show: () => void } {
   const { ready } = useAds();
   const active = ready && enabled;
   const { status, show, load, earnedReward } = useRewardedAd({ adUnitId: AD_UNITS[unit], autoLoad: active });
@@ -49,9 +53,16 @@ export function useRewardedHint({ enabled, onReward, onClosed, unit = 'rewardedH
       showing.current = false;
       releaseMusic.current?.();
       releaseMusic.current = null;
-      latest.current.onClosed?.();
+      latest.current.onClosed?.({ failed: status === 'error' });
       if (active) load();
     }
+  }, [status, active, load]);
+
+  // Nothing to show (no fill, network error): autoLoad doesn't retry, so try again a little later.
+  useEffect(() => {
+    if (!active || showing.current || (status !== 'no-fill' && status !== 'error')) return;
+    const timer = setTimeout(load, RETRY_MS);
+    return () => clearTimeout(timer);
   }, [status, active, load]);
 
   const showAd = useCallback(() => {

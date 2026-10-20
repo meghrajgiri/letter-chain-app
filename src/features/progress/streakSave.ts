@@ -24,7 +24,8 @@ export type StreakSaveOffer = {
  * SAVE_COOLDOWN_DAYS. Stays on offer all of today, even after today's daily is done.
  */
 export function streakSaveOffer(results: readonly GameResult[], saves: readonly StreakSave[], todayKey: string): StreakSaveOffer | null {
-  const kept = new Set([...playedDays(results), ...saves.map((s) => s.day)]);
+  const played = playedDays(results);
+  const kept = new Set([...played, ...saves.map((s) => s.day)]);
   const missed = addDays(todayKey, -1);
   if (kept.has(missed)) return null;
 
@@ -32,8 +33,10 @@ export function streakSaveOffer(results: readonly GameResult[], saves: readonly 
   for (let cursor = addDays(missed, -1); kept.has(cursor); cursor = addDays(cursor, -1)) streak++;
   if (streak < MIN_STREAK_TO_SAVE) return null;
 
+  // Only saves that filled a real gap count. A save for a day that turns out to
+  // have been played (on another device whose result synced later) costs nothing.
   const cooldownStart = addDays(missed, -(SAVE_COOLDOWN_DAYS - 1));
-  if (saves.some((s) => s.day >= cooldownStart && s.day <= missed)) return null;
+  if (saves.some((s) => s.day >= cooldownStart && s.day <= missed && !played.has(s.day))) return null;
 
   return { day: missed, streak };
 }

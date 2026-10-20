@@ -62,6 +62,12 @@ describe('streakSaveOffer', () => {
     expect(streakSaveOffer(later, [save('2026-10-12')], TODAY)).toEqual({ day: '2026-10-19', streak: 8 });
   });
 
+  it('ignores a save for a day that was in fact played (synced late from another device)', () => {
+    // 10-15 was saved on one phone, but another phone had played it.
+    const played = dailies('2026-10-14', '2026-10-15', '2026-10-16', '2026-10-17', '2026-10-18');
+    expect(streakSaveOffer(played, [save('2026-10-15')], TODAY)).toEqual({ day: '2026-10-19', streak: 5 });
+  });
+
   it('counts an earlier save as part of the run it would protect', () => {
     const played = dailies('2026-10-05', '2026-10-07', '2026-10-08', '2026-10-09', '2026-10-10', '2026-10-11', '2026-10-12', '2026-10-13', '2026-10-14', '2026-10-15', '2026-10-16', '2026-10-17', '2026-10-18');
     expect(streakSaveOffer(played, [save('2026-10-06')], TODAY)).toEqual({ day: '2026-10-19', streak: 14 });

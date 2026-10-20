@@ -36,7 +36,7 @@ import { startAutoGame } from '@/features/play/autoPlay';
 import { canOfferAdHint } from '@/features/ads/adPolicy';
 import { useAds } from '@/features/ads/AdsProvider';
 import { useInterstitialBreak } from '@/features/ads/useInterstitialBreak';
-import { useRewardedHint } from '@/features/ads/useRewardedHint';
+import { useRewarded } from '@/features/ads/useRewarded';
 import { LIP, colors, radius, shadows, spacing } from '@/theme/tokens';
 
 export type PuzzleMode = 'free' | 'daily';
@@ -256,7 +256,8 @@ export function PuzzleScreen({ theme, difficulty, mode = 'free', seed: initialSe
   }, [settings.tutorialsSeen, updateSettings, isComplete, paused, startTimer]);
 
   // Out of hints: offer one more for watching a rewarded ad. The clock pauses while it plays.
-  const rewardedHint = useRewardedHint({
+  const rewardedHint = useRewarded({
+    unit: 'rewardedHint',
     enabled: !isComplete,
     onReward: () => {
       addAdHint();

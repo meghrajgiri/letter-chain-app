@@ -1,7 +1,7 @@
 /**
  * Google AdMob (native). Gathers consent first (Google's UMP form, shown only
  * where the law requires it, e.g. EU/UK), then starts the SDK. Screens use
- * `useRewardedHint` and `useInterstitialBreak`; both wait for `ready`.
+ * `useRewarded` and `useInterstitialBreak`; both wait for `ready`.
  */
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import mobileAds, { AdsConsent, AdsConsentPrivacyOptionsRequirementStatus, TestIds } from 'react-native-google-mobile-ads';
@@ -12,6 +12,7 @@ import {
   recordFinishedGame,
   recordInterstitialShown,
   type InterstitialState,
+  type RewardedUnit,
 } from './adPolicy';
 
 /** Real ad units in release builds; Google's test units in development (never click real ads). */
@@ -19,7 +20,7 @@ export const AD_UNITS = {
   rewardedHint: __DEV__ ? TestIds.REWARDED : 'ca-app-pub-6296571874627648/6139609264',
   betweenPuzzles: __DEV__ ? TestIds.INTERSTITIAL : 'ca-app-pub-6296571874627648/8715913553',
   streakSave: __DEV__ ? TestIds.REWARDED : 'ca-app-pub-6296571874627648/2808311873',
-} as const;
+} as const satisfies Record<RewardedUnit | 'betweenPuzzles', string>;
 
 export type AdsApi = {
   /** Consent gathered and SDK started: ads may be requested. */

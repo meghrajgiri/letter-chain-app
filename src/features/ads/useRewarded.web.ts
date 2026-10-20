@@ -1,9 +1,11 @@
+import type { RewardedUnit } from './adPolicy';
+
 /** Web build: no rewarded ads. */
-export function useRewardedHint(_options: {
+export function useRewarded(_options: {
+  unit: RewardedUnit;
   enabled: boolean;
   onReward: () => void;
-  onClosed?: () => void;
-  unit?: 'rewardedHint' | 'streakSave';
+  onClosed?: (outcome: { failed: boolean }) => void;
 }): { available: boolean; show: () => void } {
   return { available: false, show: () => {} };
 }
