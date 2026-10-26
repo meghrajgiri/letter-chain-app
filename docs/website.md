@@ -10,6 +10,12 @@ Static pages in `site/`, needed for the Play Store listing:
 
 No build step: plain HTML and CSS. `site/vercel.json` turns on clean URLs (`/privacy` serves `privacy.html`).
 
+The home page is a landing page with its own stylesheet (`landing.css`, app colours and Plus Jakarta Sans from Google Fonts); the legal pages use `style.css`. Screenshots in `site/shots/` are the Play Store screenshots from `store/screenshots/`, resized to 540px wide:
+
+```bash
+for f in store/screenshots/*.jpg; do sips -s format jpeg -s formatOptions 78 --resampleWidth 540 "$f" --out "site/shots/$(basename "$f")"; done
+```
+
 ## Hosting on Vercel
 
 1. In Vercel, choose **Add New → Project** and import `meghrajgiri/letter-chain-app` (private repos work on the free Hobby plan).
