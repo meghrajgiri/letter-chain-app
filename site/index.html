@@ -3,28 +3,106 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <meta name="theme-color" content="#f8f7fc" media="(prefers-color-scheme: light)">
-  <meta name="theme-color" content="#15151c" media="(prefers-color-scheme: dark)">
-  <title>Letter Chain</title>
-  <meta name="description" content="Letter Chain: a daily word puzzle with Classic word search and winding Chain puzzles.">
+  <meta name="theme-color" content="#6c5ce7">
+  <title>Letter Chain · A fresh word puzzle every day</title>
+  <meta name="description" content="Letter Chain is a free daily word puzzle for Android. Find hidden words in Classic, or trace them through every letter in Chain.">
+  <meta property="og:title" content="Letter Chain">
+  <meta property="og:description" content="A daily word puzzle with Classic word search and winding Chain puzzles. Free on Google Play.">
+  <meta property="og:image" content="https://letterchain.meghrajgiri.com/icon.png">
+  <meta property="og:url" content="https://letterchain.meghrajgiri.com/">
   <link rel="icon" href="/icon.png">
-  <link rel="stylesheet" href="/style.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap">
+  <link rel="stylesheet" href="/landing.css">
 </head>
 <body>
-  <main>
-    <header>
-      <img class="icon" src="/icon.png" alt="" width="72" height="72">
-      <h1>Letter Chain</h1>
-      <p class="meta">A daily word puzzle for Android</p>
-    </header>
-    <p class="lead">Find hidden words in Classic word search, or trace winding words that fill the whole grid in Chain mode. A new daily puzzle every day, with streaks, levels and badges. Play as a guest or sign in with Google to keep your progress on every device.</p>
-    <h2>Links</h2>
-    <ul class="links">
-      <li><a href="/privacy">Privacy Policy</a></li>
-      <li><a href="/delete-account">Delete your account</a></li>
-      <li>Contact: <a href="mailto:meghrajgiri56@gmail.com">meghrajgiri56@gmail.com</a></li>
-    </ul>
-    <footer>Letter Chain · by Meghraj Giri</footer>
+  <header class="hero">
+    <div class="wrap">
+      <div class="top">
+        <img src="/icon.png" alt="" width="40" height="40">
+        Letter Chain
+      </div>
+
+      <div class="hero-inner">
+        <div>
+          <div class="tiles" aria-hidden="true">
+            <span class="word"><span>L</span><span>E</span><span>T</span><span>T</span><span>E</span><span>R</span></span>
+            <span class="word"><span class="y">C</span><span class="y">H</span><span class="g">A</span><span class="g">I</span><span class="g">N</span></span>
+          </div>
+          <h1>A fresh word puzzle every day</h1>
+          <p class="sub">Find hidden words in Classic, or trace them through every letter in Chain. One daily puzzle for the whole world, streaks to keep, and calm music while you play.</p>
+          <a class="play" href="https://play.google.com/store/apps/details?id=com.letterchain.app">
+            <svg aria-hidden="true" viewBox="0 0 24 24" width="22" height="22"><path fill="currentColor" d="M12 3a1 1 0 0 1 1 1v9.59l3.3-3.3a1 1 0 1 1 1.4 1.42l-5 5a1 1 0 0 1-1.4 0l-5-5a1 1 0 1 1 1.4-1.42l3.3 3.3V4a1 1 0 0 1 1-1Zm-7 15a1 1 0 0 1 1 1v1h12v-1a1 1 0 1 1 2 0v2a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1v-2a1 1 0 0 1 1-1Z"/></svg>
+            Download on Google Play
+          </a>
+          <p class="fine">Free · Android · No account needed</p>
+        </div>
+        <div class="hero-shot">
+          <img src="/shots/4-chain.jpg" width="540" height="960" alt="A Chain puzzle: the words PANDA and WALRUS traced through a grid of letter tiles.">
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <section aria-labelledby="modes">
+      <h2 id="modes">Two ways to play</h2>
+      <p class="lede">Classic and Chain take turns as the daily puzzle, and you can play either one as much as you like.</p>
+      <ul class="features">
+        <li class="card">
+          <div class="badge purple"><svg aria-hidden="true" viewBox="0 0 24 24" width="26" height="26"><path fill="currentColor" d="M4 4h6v6H4V4Zm10 0h6v6h-6V4ZM4 14h6v6H4v-6Zm10 0h6v6h-6v-6Z"/></svg></div>
+          <h3>Classic</h3>
+          <p>Find the hidden words in straight lines: across, down and diagonally. Swipe across a word, or tap its first and last letter.</p>
+        </li>
+        <li class="card">
+          <div class="badge yellow"><svg aria-hidden="true" viewBox="0 0 24 24" width="26" height="26"><path fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" d="M5 19V9a4 4 0 0 1 8 0v6a4 4 0 0 0 8 0V5"/></svg></div>
+          <h3>Chain</h3>
+          <p>Every letter belongs to a word. Trace each one up, down or sideways until the whole grid is used.</p>
+        </li>
+        <li class="card">
+          <div class="badge coral"><svg aria-hidden="true" viewBox="0 0 24 24" width="26" height="26"><path fill="currentColor" d="M13.5 2s.5 3-1.6 5.6C10 10 7 11.2 7 15a5 5 0 0 0 10 0c0-1.5-.5-2.6-1-3.4 0 1.4-.9 2.4-2 2.4 0 0 1.5-3.5-.5-6.5C12.9 6.3 13.5 2 13.5 2Z"/></svg></div>
+          <h3>Daily streaks</h3>
+          <p>One puzzle a day, the same for every player. Keep your streak going, and save it with a short video if you miss a day.</p>
+        </li>
+        <li class="card">
+          <div class="badge green"><svg aria-hidden="true" viewBox="0 0 24 24" width="26" height="26"><path fill="currentColor" d="M7 18a5 5 0 0 1-.6-10A6 6 0 0 1 18 9a4.5 4.5 0 0 1-.5 9H7Zm3.3-3.3 5-5-1.4-1.4-3.6 3.6-1.6-1.6-1.4 1.4 3 3Z"/></svg></div>
+          <h3>Play your way</h3>
+          <p>Play as a guest, or sign in with Google to keep your progress on every device. Hints when you're stuck, levels as you improve.</p>
+        </li>
+      </ul>
+    </section>
+
+    <section aria-labelledby="screens">
+      <h2 id="screens">See it in action</h2>
+      <p class="lede">Real screens from the app. Swipe for more.</p>
+      <ul class="shots">
+        <li><img src="/shots/1-home.jpg" width="540" height="960" loading="lazy" alt="A fresh puzzle every day: the home screen with today's daily puzzle."></li>
+        <li><img src="/shots/2-drag.jpg" width="540" height="960" loading="lazy" alt="Swipe to find the words in a Classic puzzle."></li>
+        <li><img src="/shots/3-guide.jpg" width="540" height="960" loading="lazy" alt="Guides show where words run."></li>
+        <li><img src="/shots/4-chain.jpg" width="540" height="960" loading="lazy" alt="Chain: every letter fits."></li>
+        <li><img src="/shots/5-play.jpg" width="540" height="960" loading="lazy" alt="Level up as you play."></li>
+        <li><img src="/shots/6-progress.jpg" width="540" height="960" loading="lazy" alt="Build a daily streak and track your progress."></li>
+      </ul>
+    </section>
+
+    <div class="cta-band">
+      <h2>Ready for today's puzzle?</h2>
+      <p>Free to play on Android, supported by ads.</p>
+      <a class="play dark" href="https://play.google.com/store/apps/details?id=com.letterchain.app">
+        <svg aria-hidden="true" viewBox="0 0 24 24" width="22" height="22"><path fill="currentColor" d="M12 3a1 1 0 0 1 1 1v9.59l3.3-3.3a1 1 0 1 1 1.4 1.42l-5 5a1 1 0 0 1-1.4 0l-5-5a1 1 0 1 1 1.4-1.42l3.3 3.3V4a1 1 0 0 1 1-1Zm-7 15a1 1 0 0 1 1 1v1h12v-1a1 1 0 1 1 2 0v2a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1v-2a1 1 0 0 1 1-1Z"/></svg>
+        Download on Google Play
+      </a>
+    </div>
+
+    <footer>
+      <ul>
+        <li><a href="/privacy">Privacy Policy</a></li>
+        <li><a href="/delete-account">Delete your account</a></li>
+        <li><a href="mailto:meghrajgiri56@gmail.com">meghrajgiri56@gmail.com</a></li>
+      </ul>
+      Letter Chain · by Meghraj Giri
+    </footer>
   </main>
 </body>
 </html>

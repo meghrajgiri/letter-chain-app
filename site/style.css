@@ -7,6 +7,7 @@
   --primary: #5145cd;
   --border: #e8e7ef;
   --focus: #5145cd;
+  --on-primary: #ffffff;
 }
 @media (prefers-color-scheme: dark) {
   :root {
@@ -17,6 +18,7 @@
     --primary: #b3aafa;
     --border: #2e2e3a;
     --focus: #b3aafa;
+    --on-primary: #15151c;
   }
 }
 
@@ -111,6 +113,23 @@ li::marker { color: var(--muted); }
   min-height: 2.75rem;
 }
 
+/* Primary download button: a large tap target in the brand colour. */
+.cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-height: 3rem;
+  padding: 0.75rem 1.25rem;
+  margin: 0 0 1.25rem;
+  border-radius: 999px;
+  background: var(--primary);
+  color: var(--on-primary);
+  font-weight: 700;
+  text-decoration: none;
+}
+.cta:hover { filter: brightness(1.08); }
+.cta:focus-visible { outline-offset: 3px; border-radius: 999px; }
+
 .icon {
   display: block;
   width: 4.5rem;
@@ -140,5 +159,6 @@ footer a {
 @media print {
   :root { --bg: #fff; --ink: #000; --muted: #444; --primary: #000; }
   .lead { border-color: #ccc; }
+  .cta { background: none; color: #000; border: 1px solid #000; }
   footer { display: none; }
 }

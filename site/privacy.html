@@ -15,13 +15,13 @@
     <header>
       <p class="brand">Letter Chain</p>
       <h1>Privacy Policy</h1>
-      <p class="meta">Updated 6 October 2026 · Developer: Meghraj Giri · Contact: <a href="mailto:meghrajgiri56@gmail.com">meghrajgiri56@gmail.com</a></p>
+      <p class="meta">Updated 26 October 2026 · Developer: Meghraj Giri · Contact: <a href="mailto:meghrajgiri56@gmail.com">meghrajgiri56@gmail.com</a></p>
     </header>
 
     <p class="lead">Letter Chain is a word puzzle game. You can play without an account. If you choose to sign in with Google, we store a small amount of data so your progress follows you to other devices. The app is free and shows ads from Google AdMob; outside of ads we don't track you, and we never sell your data.</p>
 
     <h2>Playing as a guest</h2>
-    <p>Without signing in, your game history, scores, streaks, settings and reminders are stored <strong>only on your device</strong>. Nothing about you or your games is sent to us, apart from crash reports (see below).</p>
+    <p>Without signing in, your game history, scores, streaks (including any streak you saved with an ad), settings and reminders are stored <strong>only on your device</strong>. Nothing about you or your games is sent to us, apart from crash reports (see below).</p>
     <p>Ads (see below) work the same for guests and signed-in players.</p>
     <p>To show the same daily puzzle to everyone, the app downloads it from our server. Like any web request, this reveals your device's IP address to our hosting provider, which may keep it briefly in standard server logs. We don't link it to you or use it for anything else.</p>
 
@@ -30,41 +30,43 @@
     <ul>
       <li><strong>Account details from Google:</strong> your name, email address and profile picture link, plus an internal account ID.</li>
       <li><strong>Your game results:</strong> for each finished puzzle, the game mode, theme, difficulty, puzzle ID, number of words, time taken, hints used, the date and time, and the app version.</li>
+      <li><strong>Streak saves:</strong> when you watch an ad to save a broken streak, the date of the missed puzzle and when you saved it.</li>
     </ul>
     <p>We use this only to keep your account, sync your progress across devices and show your stats, streaks, levels and badges. We never see your Google password.</p>
 
     <h2>Ads</h2>
-    <p>Letter Chain shows ads from <strong>Google AdMob</strong>: an optional video you can watch for an extra hint, and an occasional full-screen ad between free-play puzzles (never during the daily puzzle). To show ads, measure them and prevent fraud, Google's ad software on your device collects and shares with Google:</p>
+    <p>Letter Chain shows ads from <strong>Google AdMob</strong>: optional videos you can choose to watch for an extra hint or to save a broken streak, and an occasional full-screen ad between free-play puzzles (never during the daily puzzle). To show ads, measure them and prevent fraud, Google's ad software on your device collects and shares with Google:</p>
     <ul>
       <li>your device's <strong>advertising ID</strong> and other device identifiers,</li>
       <li>device and app information (model, operating system, language, app version) and your IP address (from which an approximate location may be inferred),</li>
       <li>ad interactions (which ads were shown or tapped) and crash or performance information about ads.</li>
     </ul>
-    <p>Where the law requires it (for example in the EU, the UK and Switzerland), the app asks for your consent before personalised ads are shown, and you can change your choice at any time in <strong>Settings → Ad privacy choices</strong>. Elsewhere, Google may personalise ads. You can reset or delete your advertising ID, or opt out of personalised ads, in your phone's settings (Android: Settings → Privacy → Ads). Learn how Google uses this information at <a href="https://policies.google.com/technologies/partner-sites">How Google uses information from sites or apps that use its services</a>.</p>
+    <p><strong>Saving a streak while signed in:</strong> so that only a fully watched ad can save a streak, the app sends your internal account ID, a random ID for the save and the missed puzzle's date along with the ad request. When you finish the ad, Google sends these back to our server with its confirmation, and only then do we record the save. Your name, email and game results are not shared with Google for this. Guests' streak saves stay on their device.</p>
+    <p>Where the law requires it (for example in the EU, the UK and Switzerland), the app asks for your consent before personalised ads are shown, and you can change your choice at any time in <strong>Profile → Ad privacy choices</strong>. Elsewhere, Google may personalise ads. You can reset or delete your advertising ID, or opt out of personalised ads, in your phone's settings (Android: Settings → Privacy → Ads). Learn how Google uses this information at <a href="https://policies.google.com/technologies/partner-sites">How Google uses information from sites or apps that use its services</a>.</p>
     <p>We (the developer) don't receive this information about you; we only see totals such as how many ads were shown.</p>
 
     <h2>Crash reports</h2>
     <p>If the app crashes or hits an error, it sends a crash report to <strong>Sentry</strong>, our crash reporting service, so we can find and fix the problem. A report contains the error and where in the app's code it happened, the steps in the app just before it (for example which screen was open), and device and app information (model, operating system, app version, free memory). Crash reports don't include your name, email, account ID, advertising ID or game results, and IP addresses are not stored. We use them only to fix bugs, and they are deleted automatically after 90 days at most.</p>
 
     <h2>What we don't collect</h2>
-    <p>We don't collect your location, contacts, photos, microphone, browsing history or payment information, and we don't use analytics trackers (crash reports are used only to fix bugs). We never sell your data.</p>
+    <p>We don't collect your location, contacts, photos, microphone, browsing history or payment information (the app plays sounds and music but never records audio), and we don't use analytics trackers (crash reports are used only to fix bugs). We never sell your data.</p>
 
     <h2>Notifications</h2>
-    <p>Daily reminders are scheduled on your device by the app. They don't involve our servers, and you can turn them off in Settings at any time.</p>
+    <p>Daily reminders are scheduled on your device by the app. They don't involve our servers, and you can turn them off in Profile at any time.</p>
 
     <h2>Who processes your data</h2>
     <ul>
-      <li><strong>Supabase</strong> hosts our database and sign-in service (servers in Tokyo, Japan). Data is encrypted in transit, and access rules ensure each account can only read and add its own results.</li>
+      <li><strong>Supabase</strong> hosts our database and sign-in service (servers in Tokyo, Japan). Data is encrypted in transit, and access rules ensure each account can only read and add its own results (streak saves are added only by our server, after Google confirms the ad).</li>
       <li><strong>Sentry</strong> (Functional Software, Inc.) receives crash reports, under <a href="https://sentry.io/privacy/">Sentry's Privacy Policy</a>.</li>
       <li><strong>Google</strong> provides "Sign in with Google" and serves ads through <strong>Google AdMob</strong>, under <a href="https://policies.google.com/privacy">Google's Privacy Policy</a>.</li>
     </ul>
     <p>Your data may be stored and processed outside your country.</p>
 
     <h2>How long we keep it</h2>
-    <p>Account data and game results are kept until you delete your account. Guest data stays on your device until you delete the app or clear its data.</p>
+    <p>Account data, game results and streak saves are kept until you delete your account. Guest data stays on your device until you delete the app or clear its data.</p>
 
     <h2>Deleting your account and data</h2>
-    <p>In the app, open <strong>Profile → Delete account</strong>. This permanently deletes your account, profile and all synced game results straight away. You can also ask us to delete them; see <a href="/delete-account">Delete your Letter Chain account</a>. Copies in our hosting provider's backups are removed automatically within 30 days.</p>
+    <p>In the app, open <strong>Profile → Delete account</strong>. This permanently deletes your account, profile and all synced game results and streak saves straight away. You can also ask us to delete them; see <a href="/delete-account">Delete your Letter Chain account</a>. Copies in our hosting provider's backups are removed automatically within 30 days.</p>
 
     <h2>Your rights</h2>
     <p>You can ask us for a copy of your data, ask us to correct or delete it, or ask any question about this policy by emailing <a href="mailto:meghrajgiri56@gmail.com">meghrajgiri56@gmail.com</a>. We reply within 30 days.</p>
