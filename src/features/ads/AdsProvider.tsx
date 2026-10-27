@@ -11,6 +11,7 @@ import {
   interstitialDue,
   recordFinishedGame,
   recordInterstitialShown,
+  recordRewardedShown,
   type InterstitialState,
   type RewardedUnit,
 } from './adPolicy';
@@ -34,6 +35,8 @@ export type AdsApi = {
   /** Whether moving on from this puzzle may show an interstitial. */
   isInterstitialDue: (isDaily: boolean) => boolean;
   markInterstitialShown: () => void;
+  /** Call when a rewarded ad closes, so an interstitial can't follow straight after it. */
+  markRewardedShown: () => void;
 };
 
 const AdsContext = createContext<AdsApi | null>(null);
@@ -93,10 +96,13 @@ export function AdsProvider({ children }: { children: ReactNode }) {
   const markInterstitialShown = useCallback(() => {
     interstitial.current = recordInterstitialShown(Date.now());
   }, []);
+  const markRewardedShown = useCallback(() => {
+    interstitial.current = recordRewardedShown(interstitial.current, Date.now());
+  }, []);
 
   const api = useMemo<AdsApi>(
-    () => ({ ready, privacyOptionsRequired, showPrivacyOptions, recordGameFinished, isInterstitialDue, markInterstitialShown }),
-    [ready, privacyOptionsRequired, showPrivacyOptions, recordGameFinished, isInterstitialDue, markInterstitialShown],
+    () => ({ ready, privacyOptionsRequired, showPrivacyOptions, recordGameFinished, isInterstitialDue, markInterstitialShown, markRewardedShown }),
+    [ready, privacyOptionsRequired, showPrivacyOptions, recordGameFinished, isInterstitialDue, markInterstitialShown, markRewardedShown],
   );
   return <AdsContext.Provider value={api}>{children}</AdsContext.Provider>;
 }

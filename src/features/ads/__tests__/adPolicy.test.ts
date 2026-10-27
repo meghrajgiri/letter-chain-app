@@ -6,6 +6,7 @@ import {
   MAX_AD_HINTS_PER_PUZZLE,
   recordFinishedGame,
   recordInterstitialShown,
+  recordRewardedShown,
 } from '../adPolicy';
 
 describe('interstitials', () => {
@@ -23,6 +24,16 @@ describe('interstitials', () => {
   it('never shows around the daily, and dailies do not count', () => {
     expect(interstitialDue(after(5), 0, true)).toBe(false);
     expect(after(5, true).gamesSinceAd).toBe(0);
+  });
+
+  it('never shows an interstitial straight after a rewarded ad', () => {
+    // Three puzzles done, so an interstitial would be due, but a hint ad just closed.
+    let state = INITIAL_INTERSTITIAL_STATE;
+    for (let i = 0; i < 3; i++) state = recordFinishedGame(state, false);
+    expect(interstitialDue(state, 10_000, false)).toBe(true);
+    state = recordRewardedShown(state, 10_000);
+    expect(interstitialDue(state, 10_000 + INTERSTITIAL_MIN_GAP_MS - 1, false)).toBe(false);
+    expect(interstitialDue(state, 10_000 + INTERSTITIAL_MIN_GAP_MS, false)).toBe(true);
   });
 
   it('keeps at least 3 minutes between interstitials', () => {

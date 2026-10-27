@@ -8,6 +8,7 @@ export type AdsApi = {
   recordGameFinished: (isDaily: boolean) => void;
   isInterstitialDue: (isDaily: boolean) => boolean;
   markInterstitialShown: () => void;
+  markRewardedShown: () => void;
 };
 
 const NO_ADS: AdsApi = {
@@ -17,6 +18,7 @@ const NO_ADS: AdsApi = {
   recordGameFinished: () => {},
   isInterstitialDue: () => false,
   markInterstitialShown: () => {},
+  markRewardedShown: () => {},
 };
 
 const AdsContext = createContext<AdsApi>(NO_ADS);

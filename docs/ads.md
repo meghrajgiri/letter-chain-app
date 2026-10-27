@@ -20,7 +20,7 @@ These IDs are not secret; they ship inside the app.
 - **Rewarded:** when out of hints, the hint button becomes "Watch ad: +1 hint", up to 3 times per puzzle. The hint is granted only when Google reports the reward was earned. The clock pauses while the ad plays.
 - **Rewarded streak save:** the day after a missed daily, Home shows "Save your N-day streak" (rules in `progress/streakSave.ts`: one missed day, run of 2+ days, once per 7 days). Watching to the end records the save; closing early doesn't. Music pauses while it plays. Signed-in saves reach the server only through Google's **server-side verification** callback (`admob-ssv` Edge Function, see supabase-setup.md), so they can't be faked; guests' saves stay on the device.
 - **No ad available** (no fill, offline, ads not allowed yet): rewarded placements retry every 30 s while wanted (`useRewarded`). The streak card says "No ad right now" after 12 s instead of loading forever, and keeps the offer for the rest of the day.
-- **Interstitial:** only when tapping Continue after a free-play puzzle, at most one per 3 finished free-play puzzles and 3 minutes apart (counted per app session). Never before, during or after the daily.
+- **Interstitial:** only when tapping Continue after a free-play puzzle, at most one per 3 finished free-play puzzles, and at least 3 minutes after the last ad of any kind, so a rewarded hint or streak-save ad is never followed straight away by an interstitial (counted per app session). Never before, during or after the daily.
 - **No banners, no app-open ads.**
 - **Web build:** no ads (`*.web.ts` stand-ins).
 
