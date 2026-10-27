@@ -26,7 +26,7 @@ type Options = {
 
 /** A rewarded ad (a hint, a streak save…). `available` is true once an ad is ready to show. */
 export function useRewarded({ unit, enabled, onReward, onClosed, serverSideVerification }: Options): { available: boolean; show: () => void } {
-  const { ready } = useAds();
+  const { ready, markRewardedShown } = useAds();
   const active = ready && enabled;
   const ssvUser = serverSideVerification?.userId;
   const ssvData = serverSideVerification?.customData;
@@ -64,10 +64,11 @@ export function useRewarded({ unit, enabled, onReward, onClosed, serverSideVerif
       showing.current = false;
       releaseMusic.current?.();
       releaseMusic.current = null;
+      if (status === 'closed') markRewardedShown(); // keeps the next interstitial at least a few minutes away
       latest.current.onClosed?.({ failed: status === 'error' });
       if (active) load();
     }
-  }, [status, active, load]);
+  }, [status, active, load, markRewardedShown]);
 
   // Nothing to show (no fill, network error): autoLoad doesn't retry, so try again a little later.
   useEffect(() => {

@@ -2,7 +2,9 @@
  * When ads may appear. Pure TypeScript so the rules are easy to test and tune.
  *
  *  - Interstitials: only between free-play puzzles (never around the daily),
- *    at most one every 3 finished free-play puzzles and 3 minutes apart.
+ *    at most one every 3 finished free-play puzzles, and at least 3 minutes
+ *    after any ad the player saw (interstitial or rewarded), so ads never
+ *    come back to back.
  *  - Rewarded: the player chooses to watch one for an extra hint, up to 3
  *    times per puzzle.
  */
@@ -17,7 +19,7 @@ export const MAX_AD_HINTS_PER_PUZZLE = 3;
 export type InterstitialState = {
   /** Free-play puzzles finished since the last interstitial (or app start). */
   gamesSinceAd: number;
-  /** When the last interstitial was shown (ms epoch), null if none yet. */
+  /** When the last ad (interstitial or rewarded) was seen (ms epoch), null if none yet. */
   lastAdAt: number | null;
 };
 
@@ -37,6 +39,11 @@ export function interstitialDue(state: InterstitialState, now: number, isDaily: 
 
 export function recordInterstitialShown(now: number): InterstitialState {
   return { gamesSinceAd: 0, lastAdAt: now };
+}
+
+/** A rewarded ad (hint, streak save) also restarts the gap, but not the puzzle count. */
+export function recordRewardedShown(state: InterstitialState, now: number): InterstitialState {
+  return { ...state, lastAdAt: now };
 }
 
 /** Whether a "watch an ad for a hint" offer may be shown. */
